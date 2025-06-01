@@ -1,0 +1,86 @@
+﻿@inject IHttpContextAccessor HttpContextAccessor
+@{
+    ViewData["Title"] = "Home";
+}
+
+<style>
+    body {
+        background-image: url('https://img.freepik.com/photos-gratuite/fond-boules-decoratives-vintage-bleu_53876-102739.jpg');
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        background-repeat: no-repeat;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .overlay-container {
+        background-color: rgba(255, 255, 255, 0.9);
+        border-radius: 15px;
+        padding: 40px;
+        margin-top: 50px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+    }
+</style>
+
+@* <div class="container text-center overlay-container"> *@
+    <div class=" text-center ">
+    <h1 class="display-4 text-primary">
+        <i class="bi bi-activity"></i> <strong>Welcome to HabitTracker</strong>
+    </h1>
+    <p class="lead mt-3">
+        Take control of your daily life. Track your habits, stay motivated, and become a better version of yourself.
+    </p>
+
+    <img src="https://img.freepik.com/photos-gratuite/nature-morte-journal-balles-colore-surcharge_23-2150168639.jpg" 
+         class="img-fluid rounded mb-4" alt="Habit Tracker Banner">
+
+    <div class="d-flex justify-content-center gap-3 mt-4">
+        @if (HttpContextAccessor.HttpContext.Session.GetString("Role") == "Admin")
+        {
+                <a class="btn btn-danger btn-lg" asp-controller="Users" asp-action="Index">
+                    <i class="bi bi-people-fill"></i> Manage Users
+                </a>
+                <a class="btn btn-secondary btn-lg" asp-controller="Habits" asp-action="Index">
+                    <i class="bi bi-list-task"></i> Manage Habits
+                </a>
+        }
+        else
+        {
+                <a class="btn btn-primary btn-lg" asp-controller="Habits" asp-action="Index">
+                    <i class="bi bi-list-check"></i> View My Habits
+                </a>
+                <a class="btn btn-success btn-lg" asp-controller="HabitStatistics" asp-action="Index">
+                    <i class="bi bi-graph-up"></i> My Statistics
+                </a>
+        }
+    </div>
+
+    <hr class="my-5" />
+
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title text-success"><i class="bi bi-check2-circle"></i> Habit Tracking</h5>
+                    <p class="card-text">Create and track your habits daily to stay consistent and focused.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title text-warning"><i class="bi bi-bell-fill"></i> Reminders</h5>
+                    <p class="card-text">Set reminders to ensure you never miss an important habit.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title text-info"><i class="bi bi-bar-chart-fill"></i> Statistics</h5>
+                    <p class="card-text">Track your progress with clear and insightful charts and data.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

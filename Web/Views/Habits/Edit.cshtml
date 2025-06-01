@@ -1,0 +1,59 @@
+﻿@model HabitTrackerApp.Models.Habit
+
+@{
+    ViewData["Title"] = "Edit Habit";
+}
+
+<div class="container mt-5">
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-warning text-dark">
+            <h3 class="mb-0"><i class="bi bi-pencil-square"></i> Edit Habit</h3>
+        </div>
+        <div class="card-body">
+            <form asp-action="Edit">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                <input type="hidden" asp-for="Id" />
+
+                <div class="mb-3">
+                    <label asp-for="Name" class="form-label">Habit Name</label>
+                    <input asp-for="Name" class="form-control" />
+                    <span asp-validation-for="Name" class="text-danger small"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="CategoryId" class="form-label">Category</label>
+                    <select asp-for="CategoryId" class="form-control" asp-items="ViewBag.CategoryId"></select>
+                    <span asp-validation-for="CategoryId" class="text-danger small"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Goal" class="form-label">Goal</label>
+                    <input asp-for="Goal" class="form-control" />
+                    <span asp-validation-for="Goal" class="text-danger small"></span>
+                </div>
+                @if (ViewBag.Role == "Admin")
+{
+                <div class="mb-3">
+                    <label asp-for="UserId" class="form-label">User</label>
+                    <select asp-for="UserId" class="form-control" asp-items="ViewBag.UserId"></select>
+                    <span asp-validation-for="UserId" class="text-danger small"></span>
+                </div>
+}
+                <div class="d-flex justify-content-between">
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle"></i> Save Changes
+                    </button>
+                    <a asp-action="Index" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left-circle"></i> Back to List
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");
+}
+
+}

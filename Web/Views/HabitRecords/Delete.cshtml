@@ -1,0 +1,35 @@
+﻿@model HabitTrackerApp.Models.HabitRecord
+
+@{
+    ViewData["Title"] = "Delete Habit Record";
+}
+
+<h1 class="text-danger mb-4">⚠️ Delete a Habit Record</h1>
+
+<div class="alert alert-warning">
+    <strong>Are you sure you want to delete this habit record?</strong> This action cannot be undone.
+</div>
+
+<div class="card mb-4 shadow-sm">
+    <div class="card-body">
+        <h5 class="card-title mb-3">Habit Record Details</h5>
+        <dl class="row mb-0">
+            <dt class="col-sm-4">Date</dt>
+            <dd class="col-sm-8">@Html.DisplayFor(model => model.Date)</dd>
+
+            <dt class="col-sm-4">Completed</dt>
+            <dd class="col-sm-8">@Html.DisplayFor(model => model.IsCompleted)</dd>
+
+            <dt class="col-sm-4">Habit Goal</dt>
+            <dd class="col-sm-8">@Html.DisplayFor(model => model.Habit.Goal)</dd>
+        </dl>
+    </div>
+</div>
+
+<form asp-action="Delete">
+    <input type="hidden" asp-for="Id" />
+    <div class="d-flex gap-3">
+        <button type="submit" class="btn btn-danger">✅ Delete</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">❌ Cancel</a>
+    </div>
+</form>

@@ -1,0 +1,36 @@
+﻿@model HabitTrackerApp.Models.Reminder
+
+@{
+    ViewData["Title"] = "Reminder Details";
+}
+
+<div class="container mt-5">
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-primary text-white">
+            <h3 class="mb-0"><i class="bi bi-alarm"></i> Reminder Details</h3>
+        </div>
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3 text-secondary">Message</dt>
+                <dd class="col-sm-9">@Model.Message</dd>
+
+                <dt class="col-sm-3 text-secondary">Reminder Time</dt>
+                <dd class="col-sm-9">@Model.ReminderTime.ToString("yyyy-MM-dd HH:mm")</dd>
+
+                <dt class="col-sm-3 text-secondary">Habit</dt>
+                <dd class="col-sm-9">@Model.Habit?.Goal</dd>
+
+                <dt class="col-sm-3 text-secondary">User</dt>
+                <dd class="col-sm-9">@Model.User?.Email</dd>
+            </dl>
+        </div>
+        <div class="card-footer d-flex justify-content-between">
+            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-warning">
+                <i class="bi bi-pencil-square"></i> Edit
+            </a>
+            <a asp-action="Index" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left-circle"></i> Back to List
+            </a>
+        </div>
+    </div>
+</div>

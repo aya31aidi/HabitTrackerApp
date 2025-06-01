@@ -1,0 +1,35 @@
+﻿@model HabitTrackerApp.Models.User
+
+@{
+    ViewData["Title"] = "Delete a user";
+}
+
+<h1 class="text-danger mb-4">⚠️ Delete a user</h1>
+
+<div class="alert alert-warning">
+    <strong>Are you sure you want to delete this user?</strong> This action is irreversible.
+</div>
+
+<div class="card mb-4 shadow-sm">
+    <div class="card-body">
+        <h5 class="card-title mb-3">User details</h5>
+        <dl class="row mb-0">
+            <dt class="col-sm-4">Username</dt>
+            <dd class="col-sm-8">@Html.DisplayFor(model => model.Name)</dd>
+
+            <dt class="col-sm-4">Email</dt>
+            <dd class="col-sm-8">@Html.DisplayFor(model => model.Email)</dd>
+
+            <dt class="col-sm-4">Created At</dt>
+            <dd class="col-sm-8">@Html.DisplayFor(model => model.CreatedAt)</dd>
+        </dl>
+    </div>
+</div>
+
+<form asp-action="Delete">
+    <input type="hidden" asp-for="Id" />
+    <div class="d-flex gap-3">
+        <button type="submit" class="btn btn-danger">✅ Delete</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">❌ Cancel</a>
+    </div>
+</form>
