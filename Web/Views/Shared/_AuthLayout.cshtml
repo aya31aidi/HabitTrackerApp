@@ -1,0 +1,89 @@
+@* Split screen layout for the sign in / sign up pages *@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] · HabitTracker</title>
+
+    <script>
+        (function () {
+            var saved = null;
+            try { saved = localStorage.getItem('ht-theme'); } catch (e) { }
+            var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            document.documentElement.setAttribute('data-bs-theme', saved || (dark ? 'dark' : 'light'));
+        })();
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="icon" href="~/favicon.ico" />
+</head>
+<body>
+    <div class="auth-shell">
+        <section class="auth-showcase">
+            <span class="bubble" style="width:340px;height:340px;top:-120px;right:-100px"></span>
+            <span class="bubble" style="width:180px;height:180px;bottom:80px;left:-60px"></span>
+
+            <a class="brand p-0" asp-controller="Home" asp-action="Index">
+                <span class="brand-logo"><i class="bi bi-check2-all"></i></span>
+                HabitTracker
+            </a>
+
+            <div>
+                <h2 class="mb-3">Build better habits, one small win at a time.</h2>
+                <p class="mb-5">Check off habits in a click, keep streaks alive, get reminded at the right moment and watch the progress add up.</p>
+
+                <div class="d-grid gap-3">
+                    <div class="showcase-card">
+                        <span class="check-btn is-done"><i class="bi bi-check-lg"></i></span>
+                        <div>
+                            <div class="fw-bold">Morning run</div>
+                            <small class="opacity-75"><i class="bi bi-fire"></i> 12 days streak</small>
+                        </div>
+                    </div>
+                    <div class="showcase-card">
+                        <span class="check-btn is-done"><i class="bi bi-check-lg"></i></span>
+                        <div>
+                            <div class="fw-bold">Read 20 pages</div>
+                            <small class="opacity-75"><i class="bi bi-graph-up-arrow"></i> 86% completion</small>
+                        </div>
+                    </div>
+                    <div class="showcase-card">
+                        <span class="check-btn"><i class="bi bi-check-lg"></i></span>
+                        <div>
+                            <div class="fw-bold">Drink 2L of water</div>
+                            <small class="opacity-75"><i class="bi bi-alarm"></i> Reminder at 6:00 PM</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <small class="opacity-75">&copy; @DateTime.Now.Year HabitTracker</small>
+        </section>
+
+        <section class="auth-form-side">
+            <div class="auth-card reveal">
+                @RenderBody()
+            </div>
+        </section>
+    </div>
+
+    <div class="position-fixed top-0 end-0 p-3">
+        <button class="btn btn-ghost btn-icon theme-toggle" type="button" data-theme-toggle title="Toggle dark mode" aria-label="Toggle dark mode">
+            <i class="bi bi-moon-stars-fill"></i>
+            <i class="bi bi-sun-fill"></i>
+        </button>
+    </div>
+
+    <partial name="_Toasts" />
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @RenderSection("Scripts", required: false)
+</body>
+</html>

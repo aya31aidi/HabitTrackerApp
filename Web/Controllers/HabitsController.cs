@@ -7,60 +7,41 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using HabitTrackerApp.Models;
 using Web.Data;
+using Web.Models;
+using Web.Services;
 
 namespace Web.Controllers
 {
-    public class HabitsController : Controller
+    public class HabitsController : AppController
     {
-        private readonly WebContext _context;
+        // Half a year of full weeks fits nicely in the heatmap on a laptop screen
+        private const int CalendarWeeks = 26;
 
-        public HabitsController(WebContext context)
+        private readonly WebContext _context;
+        private readonly HabitStatsService _stats;
+
+        public HabitsController(WebContext context, HabitStatsService stats)
         {
             _context = context;
+            _stats = stats;
         }
 
-        public async Task<IActionResult> Index()
+        // GET: Habits?categoryId=2
+        public async Task<IActionResult> Index(int? categoryId)
         {
-            // Get Role and Email from session
-            var role = HttpContext.Session.GetString("Role");
-            var email = HttpContext.Session.GetString("Email");
-
-            ViewBag.Role = role;
-            ViewBag.Email = email;
-
-            IQueryable<Habit> webContext = _context.Habits
-                .Include(h => h.Category)
-                .Include(h => h.User);
-
-            if (role != "Admin")
+            var model = new HabitListViewModel
             {
-                webContext = webContext.Where(h => h.User.Email == email);
-            }
+                Habits = await _stats.GetSummariesAsync(User, categoryId),
+                Categories = await _context.Categories.OrderBy(c => c.Name).ToListAsync(),
+                SelectedCategoryId = categoryId,
+                IsAdmin = IsAdmin
+            };
 
-            return View(await webContext.ToListAsync());
+            return View(model);
         }
 
-        public async Task<IActionResult> ByCategory(int id)
-        {
-            var role = HttpContext.Session.GetString("Role");
-            var email = HttpContext.Session.GetString("Email");
-
-            IQueryable<Habit> habits = _context.Habits
-                .Include(h => h.Category)
-                .Include(h => h.User)
-                .Where(h => h.CategoryId == id);
-
-            if (role != "Admin")
-            {
-                habits = habits.Where(h => h.User.Email == email);
-            }
-
-            ViewBag.CategoryName = _context.Categories.FirstOrDefault(c => c.Id == id)?.Name;
-            ViewBag.Role = role;
-            ViewBag.Email = email;
-
-            return View("Index", await habits.ToListAsync());
-        }
+        // Old links pointed here, the filter now lives on the Index page
+        public IActionResult ByCategory(int id) => RedirectToAction(nameof(Index), new { categoryId = id });
 
         // GET: Habits/Details/5
         public async Task<IActionResult> Details(int? id)
@@ -70,35 +51,49 @@ namespace Web.Controllers
                 return NotFound();
             }
 
-            var habit = await _context.Habits
+            var habit = await _stats.VisibleHabits(User)
                 .Include(h => h.Category)
                 .Include(h => h.User)
+                .Include(h => h.HabitRecords)
+                .Include(h => h.Reminders)
+                .AsNoTracking()
                 .FirstOrDefaultAsync(m => m.Id == id);
             if (habit == null)
             {
                 return NotFound();
             }
 
-            return View(habit);
+            var today = DateTime.Today;
+            var summary = HabitStatsService.Summarize(habit, habit.HabitRecords, today);
+
+            // Start the calendar on a Monday so every column is a full week
+            var start = today.AddDays(-(CalendarWeeks * 7 - 1));
+            start = start.AddDays(-(((int)start.DayOfWeek + 6) % 7));
+
+            var completed = habit.HabitRecords.Where(r => r.IsCompleted).Select(r => r.Date.Date).ToHashSet();
+            var recorded = habit.HabitRecords.Select(r => r.Date.Date).ToHashSet();
+            var calendar = new List<DayStatus>();
+            for (var day = start; day <= today; day = day.AddDays(1))
+            {
+                calendar.Add(new DayStatus(day, completed.Contains(day), recorded.Contains(day)));
+            }
+
+            var model = new HabitDetailsViewModel
+            {
+                Summary = summary,
+                Calendar = calendar,
+                RecentRecords = habit.HabitRecords.OrderByDescending(r => r.Date).Take(8).ToList(),
+                Reminders = habit.Reminders.Where(r => r.ReminderTime >= DateTime.Now).OrderBy(r => r.ReminderTime).ToList()
+            };
+
+            return View(model);
         }
 
         // GET: Habits/Create
-        public IActionResult Create()
+        public async Task<IActionResult> Create(int? categoryId)
         {
-           
-            var role = HttpContext.Session.GetString("Role");
-            var email = HttpContext.Session.GetString("Email");
-
-            ViewBag.Role = role;
-
-            ViewData["CategoryId"] = new SelectList(_context.Categories, "Id", "Name");
-
-            if (role == "Admin")
-            {
-                // Admin selects user
-                ViewData["UserId"] = new SelectList(_context.Users, "Id", "Email");
-            }
-            return View();
+            await FillSelectListsAsync(categoryId, null);
+            return View(new Habit { CategoryId = categoryId ?? 0 });
         }
 
         // POST: Habits/Create
@@ -106,54 +101,47 @@ namespace Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Id,Name,CategoryId,Goal,UserId")] Habit habit)
         {
-
-            var role = HttpContext.Session.GetString("Role");
-            var email = HttpContext.Session.GetString("Email");
-
-            if (role != "Admin")
+            if (!IsAdmin)
             {
-                // Get current user ID by email
-                var currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
-                if (currentUser != null)
-                {
-                    habit.UserId = currentUser.Id;
-                }
+                // A regular user always creates habits on their own account
+                habit.UserId = CurrentUserId;
+                ModelState.Remove(nameof(Habit.UserId));
             }
-                _context.Add(habit);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+
+            await ValidateReferencesAsync(habit);
+
+            if (!ModelState.IsValid)
+            {
+                await FillSelectListsAsync(habit.CategoryId, habit.UserId);
+                return View(habit);
+            }
+
+            _context.Add(habit);
+            await _context.SaveChangesAsync();
+
+            NotifySuccess($"Habit \"{habit.Name}\" created. Check it off once it's done today!");
+            return RedirectToAction(nameof(Index));
         }
 
         // GET: Habits/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
-
             if (id == null)
             {
                 return NotFound();
             }
 
-            var habit = await _context.Habits.FindAsync(id);
+            var habit = await _stats.VisibleHabits(User).FirstOrDefaultAsync(h => h.Id == id);
             if (habit == null)
             {
                 return NotFound();
             }
 
-            var role = HttpContext.Session.GetString("Role");
-            ViewBag.Role = role;
-
-            ViewData["CategoryId"] = new SelectList(_context.Categories, "Id", "Name", habit.CategoryId);
-
-            if (role == "Admin")
-            {
-                ViewData["UserId"] = new SelectList(_context.Users, "Id", "Email", habit.UserId);
-            }
-
+            await FillSelectListsAsync(habit.CategoryId, habit.UserId);
             return View(habit);
         }
 
         // POST: Habits/Edit/5
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, [Bind("Id,Name,CategoryId,Goal,UserId")] Habit habit)
@@ -163,37 +151,46 @@ namespace Web.Controllers
                 return NotFound();
             }
 
-            var role = HttpContext.Session.GetString("Role");
-            var email = HttpContext.Session.GetString("Email");
-
-            if (role != "Admin")
+            var existing = await _stats.VisibleHabits(User).AsNoTracking().FirstOrDefaultAsync(h => h.Id == id);
+            if (existing == null)
             {
-                // Force UserId to be the one from session
-                var currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
-                if (currentUser != null)
+                return NotFound();
+            }
+
+            if (!IsAdmin)
+            {
+                // Force UserId to stay the owner's one
+                habit.UserId = existing.UserId;
+                ModelState.Remove(nameof(Habit.UserId));
+            }
+
+            await ValidateReferencesAsync(habit);
+
+            if (!ModelState.IsValid)
+            {
+                await FillSelectListsAsync(habit.CategoryId, habit.UserId);
+                return View(habit);
+            }
+
+            try
+            {
+                _context.Update(habit);
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!HabitExists(habit.Id))
                 {
-                    habit.UserId = currentUser.Id;
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
                 }
             }
 
-                try
-                {
-                    _context.Update(habit);
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!HabitExists(habit.Id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                return RedirectToAction(nameof(Index));
-
+            NotifySuccess("Habit updated.");
+            return RedirectToAction(nameof(Details), new { id = habit.Id });
         }
 
         // GET: Habits/Delete/5
@@ -204,9 +201,11 @@ namespace Web.Controllers
                 return NotFound();
             }
 
-            var habit = await _context.Habits
+            var habit = await _stats.VisibleHabits(User)
                 .Include(h => h.Category)
                 .Include(h => h.User)
+                .Include(h => h.HabitRecords)
+                .Include(h => h.Reminders)
                 .FirstOrDefaultAsync(m => m.Id == id);
             if (habit == null)
             {
@@ -221,15 +220,84 @@ namespace Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var habit = await _context.Habits.FindAsync(id);
+            var habit = await _stats.VisibleHabits(User).FirstOrDefaultAsync(h => h.Id == id);
             if (habit != null)
             {
+                // Records, statistic and reminders go away with it (cascade delete)
                 _context.Habits.Remove(habit);
                 await _context.SaveChangesAsync();
 
-                TempData["SuccessMessage"] = "The habit has been successfully deleted.";
+                NotifySuccess("The habit has been successfully deleted.");
             }
             return RedirectToAction(nameof(Index));
+        }
+
+        // POST: Habits/Toggle/5 (called with fetch from site.js)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Toggle(int id, DateTime? date, string? returnUrl)
+        {
+            var habit = await _stats.VisibleHabits(User).AsNoTracking().FirstOrDefaultAsync(h => h.Id == id);
+            if (habit == null)
+            {
+                return NotFound();
+            }
+
+            var day = (date ?? DateTime.Today).Date;
+            if (day > DateTime.Today)
+            {
+                return BadRequest(new { message = "Future days can't be checked yet." });
+            }
+
+            var completed = await _stats.ToggleAsync(id, day);
+
+            var records = await _context.HabitRecords.AsNoTracking().Where(r => r.HabitId == id).ToListAsync();
+            var summary = HabitStatsService.Summarize(habit, records, DateTime.Today);
+
+            // Plain form post fallback when JavaScript is off
+            if (!IsAjaxRequest())
+            {
+                NotifySuccess(completed ? $"Nice! \"{habit.Name}\" marked as done." : $"\"{habit.Name}\" unchecked.");
+                return !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)
+                    ? LocalRedirect(returnUrl)
+                    : RedirectToAction(nameof(Index));
+            }
+
+            return Json(new
+            {
+                completed,
+                date = day.ToString("yyyy-MM-dd"),
+                doneToday = summary.DoneToday,
+                streak = summary.CurrentStreak,
+                bestStreak = summary.BestStreak,
+                rate = summary.CompletionRate,
+                total = summary.TotalCompletions,
+                name = habit.Name
+            });
+        }
+
+        private async Task ValidateReferencesAsync(Habit habit)
+        {
+            if (!await _context.Categories.AnyAsync(c => c.Id == habit.CategoryId))
+            {
+                ModelState.AddModelError(nameof(Habit.CategoryId), "Please pick a category.");
+            }
+
+            if (IsAdmin && !await _context.Users.AnyAsync(u => u.Id == habit.UserId))
+            {
+                ModelState.AddModelError(nameof(Habit.UserId), "Please pick the user who owns this habit.");
+            }
+        }
+
+        private async Task FillSelectListsAsync(int? categoryId, int? userId)
+        {
+            ViewData["CategoryId"] = new SelectList(await _context.Categories.OrderBy(c => c.Name).ToListAsync(), "Id", "Name", categoryId);
+
+            if (IsAdmin)
+            {
+                // Admin selects user
+                ViewData["UserId"] = new SelectList(await _context.Users.OrderBy(u => u.Name).ToListAsync(), "Id", "Email", userId);
+            }
         }
 
         private bool HabitExists(int id)

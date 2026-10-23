@@ -1,0 +1,22 @@
+@model HabitSummary
+@{
+    var today = DateTime.Today;
+    var toggleUrl = Url.Action("Toggle", "Habits", new { id = Model.Habit.Id });
+}
+<div class="day-dots" aria-label="Last @HabitStatsService.RecentDays days">
+    @foreach (var day in Model.LastDays)
+    {
+        var state = day.IsCompleted ? "is-done" : day.HasRecord ? "is-missed" : "";
+        var isToday = day.Date == today;
+        <button type="button"
+                class="day-dot @state @(isToday ? "is-today" : "")"
+                data-toggle-habit
+                data-habit-id="@Model.Habit.Id"
+                data-date="@day.Date.ToString("yyyy-MM-dd")"
+                data-url="@toggleUrl"
+                title="@day.Date.ToString("ddd d MMM")@(day.IsCompleted ? " · done" : day.HasRecord ? " · missed" : "")">
+            <span class="dot"><i class="bi bi-check-lg"></i></span>
+            @(isToday ? "Today" : day.Date.ToString("ddd")[..2])
+        </button>
+    }
+</div>

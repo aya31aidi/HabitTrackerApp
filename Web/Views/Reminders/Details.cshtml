@@ -1,36 +1,43 @@
 ﻿@model HabitTrackerApp.Models.Reminder
 
 @{
-    ViewData["Title"] = "Reminder Details";
+    ViewData["Title"] = "Reminder";
+    var isPast = Model.ReminderTime < DateTime.Now;
 }
 
-<div class="container mt-5">
-    <div class="card shadow-sm border-0">
-        <div class="card-header bg-primary text-white">
-            <h3 class="mb-0"><i class="bi bi-alarm"></i> Reminder Details</h3>
-        </div>
-        <div class="card-body">
-            <dl class="row mb-0">
-                <dt class="col-sm-3 text-secondary">Message</dt>
-                <dd class="col-sm-9">@Model.Message</dd>
+<a asp-action="Index" class="breadcrumb-link"><i class="bi bi-arrow-left"></i> Reminders</a>
 
-                <dt class="col-sm-3 text-secondary">Reminder Time</dt>
-                <dd class="col-sm-9">@Model.ReminderTime.ToString("yyyy-MM-dd HH:mm")</dd>
+<div class="row justify-content-center">
+    <div class="col-lg-7 col-xl-6">
+        <div class="panel reveal">
+            <div class="d-flex align-items-center gap-3 mb-4">
+                <div class="reminder-time" style="min-width:76px">
+                    <strong>@Model.ReminderTime.Day</strong>
+                    <span>@Model.ReminderTime.ToString("MMM yyyy")</span>
+                </div>
+                <div>
+                    <h1 class="h4 mb-1">@Model.Message</h1>
+                    <span class="status-pill @(isPast ? "past" : "upcoming")">
+                        <i class="bi @(isPast ? "bi-clock-history" : "bi-hourglass-split")"></i>
+                        <time data-relative datetime="@Model.ReminderTime.ToString("yyyy-MM-ddTHH:mm:ss")">@Model.ReminderTime.ToString("g")</time>
+                    </span>
+                </div>
+            </div>
 
-                <dt class="col-sm-3 text-secondary">Habit</dt>
-                <dd class="col-sm-9">@Model.Habit?.Goal</dd>
-
-                <dt class="col-sm-3 text-secondary">User</dt>
-                <dd class="col-sm-9">@Model.User?.Email</dd>
+            <dl class="detail-list">
+                <div><dt>When</dt><dd>@Model.ReminderTime.ToString("dddd d MMMM yyyy, HH:mm")</dd></div>
+                <div>
+                    <dt>Habit</dt>
+                    <dd><a asp-controller="Habits" asp-action="Details" asp-route-id="@Model.HabitId">@Model.Habit?.Name</a></dd>
+                </div>
+                <div><dt>Category</dt><dd><span class="chip @CategoryStyle.Tone(Model.Habit?.CategoryId ?? 0)">@Model.Habit?.Category?.Name</span></dd></div>
+                <div><dt>User</dt><dd>@Model.User?.Email</dd></div>
             </dl>
-        </div>
-        <div class="card-footer d-flex justify-content-between">
-            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-warning">
-                <i class="bi bi-pencil-square"></i> Edit
-            </a>
-            <a asp-action="Index" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left-circle"></i> Back to List
-            </a>
+
+            <div class="d-flex flex-wrap gap-2 mt-4">
+                <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary"><i class="bi bi-pencil me-1"></i> Edit</a>
+                <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-ghost text-danger"><i class="bi bi-trash me-1"></i> Delete</a>
+            </div>
         </div>
     </div>
 </div>

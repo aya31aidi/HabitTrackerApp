@@ -52,7 +52,6 @@ namespace Web.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Goal")
-                        .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
@@ -92,7 +91,7 @@ namespace Web.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("HabitId");
+                    b.HasIndex("HabitId", "Date");
 
                     b.ToTable("HabitRecords");
                 });
@@ -169,7 +168,8 @@ namespace Web.Migrations
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -178,10 +178,13 @@ namespace Web.Migrations
 
                     b.Property<string>("Password")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
 
                     b.ToTable("Users");
                 });
@@ -218,11 +221,13 @@ namespace Web.Migrations
 
             modelBuilder.Entity("HabitTrackerApp.Models.HabitStatistic", b =>
                 {
-                    b.HasOne("HabitTrackerApp.Models.Habit", null)
+                    b.HasOne("HabitTrackerApp.Models.Habit", "Habit")
                         .WithOne("HabitStatistic")
                         .HasForeignKey("HabitTrackerApp.Models.HabitStatistic", "HabitId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Habit");
                 });
 
             modelBuilder.Entity("HabitTrackerApp.Models.Reminder", b =>
@@ -253,8 +258,7 @@ namespace Web.Migrations
                 {
                     b.Navigation("HabitRecords");
 
-                    b.Navigation("HabitStatistic")
-                        .IsRequired();
+                    b.Navigation("HabitStatistic");
 
                     b.Navigation("Reminders");
                 });

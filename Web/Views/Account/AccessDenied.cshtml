@@ -1,0 +1,12 @@
+@{
+    ViewData["Title"] = "Access denied";
+}
+
+<div class="panel empty-state reveal mx-auto" style="max-width: 560px">
+    <div class="empty-icon icon-danger"><i class="bi bi-shield-lock"></i></div>
+    <h3>This page is reserved to administrators</h3>
+    <p>The current account doesn't have the rights to open it. Head back to the dashboard to continue tracking.</p>
+    <a asp-controller="Home" asp-action="Index" class="btn btn-primary">
+        <i class="bi bi-house me-1"></i> Back to dashboard
+    </a>
+</div>

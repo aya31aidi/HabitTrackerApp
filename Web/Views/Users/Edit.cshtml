@@ -1,60 +1,27 @@
-﻿@model HabitTrackerApp.Models.User
+﻿@model UserFormViewModel
 
 @{
     ViewData["Title"] = "Edit User";
 }
 
-<div class="container mt-5">
-    <div class="card shadow-sm border-0">
-        <div class="card-header bg-warning text-dark">
-            <h3 class="mb-0"><i class="bi bi-pencil-square"></i> Edit User</h3>
-        </div>
-        <div class="card-body">
-            <form asp-action="Edit">
-                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
-                <input type="hidden" asp-for="Id" />
+<a asp-action="Details" asp-route-id="@Model.Id" class="breadcrumb-link"><i class="bi bi-arrow-left"></i> Back to the profile</a>
+<div class="page-header">
+    <div>
+        <h1>Edit user</h1>
+    </div>
+    <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-ghost text-danger"><i class="bi bi-trash me-1"></i> Delete</a>
+</div>
 
-                <div class="mb-3">
-                    <label asp-for="Name" class="form-label"></label>
-                    <input asp-for="Name" class="form-control" />
-                    <span asp-validation-for="Name" class="text-danger small"></span>
-                </div>
-
-                <div class="mb-3">
-                    <label asp-for="Email" class="form-label"></label>
-                    <input asp-for="Email" class="form-control" />
-                    <span asp-validation-for="Email" class="text-danger small"></span>
-                </div>
-                <input type="hidden" asp-for="Password" />
-               <div class="mb-3">
-                    <label asp-for="Password" class="form-label">Password</label>
-                    <input name="NewPassword" class="form-control" type="password" placeholder="••••••••" />
-                    <small class="form-text text-muted">Leave blank to keep the old password.</small>
-               </div>
-
-                <div class="mb-3">
-                    <label asp-for="CreatedAt" class="form-label"></label>
-                    @* <input asp-for="CreatedAt" class="form-control" readonly /> *@
-                    <input asp-for="CreatedAt" class="form-control" type="datetime-local" />
-
-                    <span asp-validation-for="CreatedAt" class="text-danger small"></span>
-                </div>
-
-                <div class="d-flex justify-content-between">
-                    <button type="submit" class="btn btn-success">
-                        <i class="bi bi-check-circle"></i> Save Changes
-                    </button>
-                    <a asp-action="Index" class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-left-circle"></i> Back to List
-                    </a>
-                </div>
+<div class="row">
+    <div class="col-lg-7 col-xl-6">
+        <div class="panel reveal">
+            <form asp-action="Edit" method="post" data-loading>
+                <partial name="_UserForm" model="Model" view-data='new ViewDataDictionary(ViewData) { ["SubmitText"] = "Save changes" }' />
             </form>
         </div>
     </div>
 </div>
 
 @section Scripts {
-    @{
-        await Html.RenderPartialAsync("_ValidationScriptsPartial");
-    }
+    <partial name="_ValidationScriptsPartial" />
 }

@@ -1,86 +1,223 @@
-﻿@inject IHttpContextAccessor HttpContextAccessor
+﻿@model DashboardViewModel
 @{
-    ViewData["Title"] = "Home";
+    ViewData["Title"] = "Dashboard";
+
+    var hour = DateTime.Now.Hour;
+    var greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+    var firstName = Model.DisplayName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? Model.DisplayName;
+    var left = Model.Habits.Count - Model.CompletedToday;
+    var todayHabits = Model.Habits.OrderBy(h => h.DoneToday).ThenByDescending(h => h.CurrentStreak).ToList();
 }
 
-<style>
-    body {
-        background-image: url('https://img.freepik.com/photos-gratuite/fond-boules-decoratives-vintage-bleu_53876-102739.jpg');
-        background-size: cover;
-        background-position: center;
-        background-attachment: fixed;
-        background-repeat: no-repeat;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-
-    .overlay-container {
-        background-color: rgba(255, 255, 255, 0.9);
-        border-radius: 15px;
-        padding: 40px;
-        margin-top: 50px;
-        box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
-    }
-</style>
-
-@* <div class="container text-center overlay-container"> *@
-    <div class=" text-center ">
-    <h1 class="display-4 text-primary">
-        <i class="bi bi-activity"></i> <strong>Welcome to HabitTracker</strong>
-    </h1>
-    <p class="lead mt-3">
-        Take control of your daily life. Track your habits, stay motivated, and become a better version of yourself.
-    </p>
-
-    <img src="https://img.freepik.com/photos-gratuite/nature-morte-journal-balles-colore-surcharge_23-2150168639.jpg" 
-         class="img-fluid rounded mb-4" alt="Habit Tracker Banner">
-
-    <div class="d-flex justify-content-center gap-3 mt-4">
-        @if (HttpContextAccessor.HttpContext.Session.GetString("Role") == "Admin")
+<section class="hero reveal mb-4">
+    <div class="row align-items-center g-4 position-relative" style="z-index:1">
+        <div class="col-md">
+            <h1>@greeting, @firstName!</h1>
+            <p data-today-message>
+                @if (Model.Habits.Count == 0)
+                {
+                    @:No habits yet. Create the first one and start a streak today.
+                }
+                else if (left == 0)
+                {
+                    @:Everything is done for today. Impressive!
+                }
+                else
+                {
+                    @($"{left} habit{(left > 1 ? "s" : "")} left for today. Keep going!")
+                }
+            </p>
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <a class="btn btn-light" asp-controller="Habits" asp-action="Create"><i class="bi bi-plus-lg me-1"></i> New habit</a>
+                <a class="btn btn-outline-light" asp-controller="HabitStatistics" asp-action="Index"><i class="bi bi-bar-chart-line me-1"></i> See statistics</a>
+            </div>
+        </div>
+        @if (Model.Habits.Count > 0)
         {
-                <a class="btn btn-danger btn-lg" asp-controller="Users" asp-action="Index">
-                    <i class="bi bi-people-fill"></i> Manage Users
-                </a>
-                <a class="btn btn-secondary btn-lg" asp-controller="Habits" asp-action="Index">
-                    <i class="bi bi-list-task"></i> Manage Habits
-                </a>
-        }
-        else
-        {
-                <a class="btn btn-primary btn-lg" asp-controller="Habits" asp-action="Index">
-                    <i class="bi bi-list-check"></i> View My Habits
-                </a>
-                <a class="btn btn-success btn-lg" asp-controller="HabitStatistics" asp-action="Index">
-                    <i class="bi bi-graph-up"></i> My Statistics
-                </a>
+            <div class="col-md-auto text-center">
+                <partial name="_ProgressRing" model="(double)Model.TodayPercent"
+                         view-data='new ViewDataDictionary(ViewData) { ["Size"] = 136, ["Label"] = "done today", ["TodayRing"] = true }' />
+            </div>
         }
     </div>
+</section>
 
-    <hr class="my-5" />
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3">
+        <div class="card stat-card reveal" style="--i:1">
+            <span class="stat-icon icon-primary"><i class="bi bi-list-check"></i></span>
+            <div>
+                <div class="stat-value" data-count-to="@Model.Habits.Count">0</div>
+                <div class="stat-label">Active habits</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stat-card reveal" style="--i:2">
+            <span class="stat-icon icon-success"><i class="bi bi-check2-circle"></i></span>
+            <div>
+                <div class="stat-value"><span data-count-to="@Model.CompletedToday" data-today-done>0</span><small class="text-muted fs-6"> / @Model.Habits.Count</small></div>
+                <div class="stat-label">Done today</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stat-card reveal" style="--i:3">
+            <span class="stat-icon icon-flame"><i class="bi bi-fire"></i></span>
+            <div>
+                <div class="stat-value" data-count-to="@Model.BestStreak">0</div>
+                <div class="stat-label">Best active streak</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stat-card reveal" style="--i:4">
+            <span class="stat-icon icon-warning"><i class="bi bi-trophy"></i></span>
+            <div>
+                <div class="stat-value" data-count-to="@Model.AverageRate.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-decimals="0" data-suffix="%">0%</div>
+                <div class="stat-label">Avg. completion</div>
+            </div>
+        </div>
+    </div>
+    @if (Model.IsAdmin)
+    {
+        <div class="col-6 col-xl-3">
+            <a class="card stat-card hover-lift reveal text-reset" style="--i:5" asp-controller="Users" asp-action="Index">
+                <span class="stat-icon icon-danger"><i class="bi bi-people"></i></span>
+                <div>
+                    <div class="stat-value" data-count-to="@Model.UserCount">0</div>
+                    <div class="stat-label">Registered users</div>
+                </div>
+            </a>
+        </div>
+        <div class="col-6 col-xl-3">
+            <a class="card stat-card hover-lift reveal text-reset" style="--i:6" asp-controller="Categories" asp-action="Index">
+                <span class="stat-icon icon-primary"><i class="bi bi-tags"></i></span>
+                <div>
+                    <div class="stat-value" data-count-to="@Model.CategoryCount">0</div>
+                    <div class="stat-label">Categories</div>
+                </div>
+            </a>
+        </div>
+    }
+</div>
 
-    <div class="row g-4">
-        <div class="col-md-4">
-            <div class="card shadow-sm h-100">
-                <div class="card-body">
-                    <h5 class="card-title text-success"><i class="bi bi-check2-circle"></i> Habit Tracking</h5>
-                    <p class="card-text">Create and track your habits daily to stay consistent and focused.</p>
-                </div>
+<div class="row g-4">
+    <div class="col-lg-7">
+        <section class="panel reveal h-100" style="--i:3">
+            <div class="panel-title">
+                <h2><i class="bi bi-sun me-2 text-warning"></i>Today's habits</h2>
+                <a asp-controller="Habits" asp-action="Index" class="small fw-semibold">View all <i class="bi bi-arrow-right"></i></a>
             </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card shadow-sm h-100">
-                <div class="card-body">
-                    <h5 class="card-title text-warning"><i class="bi bi-bell-fill"></i> Reminders</h5>
-                    <p class="card-text">Set reminders to ensure you never miss an important habit.</p>
+
+            @if (todayHabits.Count == 0)
+            {
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="bi bi-stars"></i></div>
+                    <h3>Let's build the first habit</h3>
+                    <p>Pick something small, like drinking a glass of water or reading 5 pages. Consistency beats intensity.</p>
+                    <a class="btn btn-primary" asp-controller="Habits" asp-action="Create"><i class="bi bi-plus-lg me-1"></i> Create a habit</a>
                 </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card shadow-sm h-100">
-                <div class="card-body">
-                    <h5 class="card-title text-info"><i class="bi bi-bar-chart-fill"></i> Statistics</h5>
-                    <p class="card-text">Track your progress with clear and insightful charts and data.</p>
+            }
+            else
+            {
+                <div>
+                    @foreach (var item in todayHabits)
+                    {
+                        <div class="today-item @(item.DoneToday ? "is-done" : "")">
+                            <partial name="_CheckButton" model="item" />
+                            <div class="flex-grow-1 overflow-hidden">
+                                <a class="today-name d-block text-truncate" asp-controller="Habits" asp-action="Details" asp-route-id="@item.Habit.Id">@item.Habit.Name</a>
+                                <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
+                                    <span class="chip @CategoryStyle.Tone(item.Habit.CategoryId)">
+                                        <i class="bi @CategoryStyle.Icon(item.Habit.Category?.Name)"></i> @item.Habit.Category?.Name
+                                    </span>
+                                    @if (Model.IsAdmin)
+                                    {
+                                        <small class="text-muted"><i class="bi bi-person"></i> @item.Habit.User?.Name</small>
+                                    }
+                                </div>
+                            </div>
+                            <span class="streak @(item.CurrentStreak == 0 ? "is-cold" : "")" data-habit-streak="@item.Habit.Id" title="Current streak">
+                                <i class="bi bi-fire"></i> <span data-value>@item.CurrentStreak</span>
+                            </span>
+                        </div>
+                    }
                 </div>
+            }
+        </section>
+    </div>
+
+    <div class="col-lg-5 d-flex flex-column gap-4">
+        <section class="panel reveal" style="--i:4">
+            <div class="panel-title">
+                <h2><i class="bi bi-activity me-2 text-primary"></i>Last 14 days</h2>
+                <small class="text-muted">check-ins per day</small>
             </div>
-        </div>
+            <div class="chart-box chart-box-sm">
+                <canvas id="activityChart" aria-label="Completed habits per day over the last 14 days" role="img"></canvas>
+            </div>
+        </section>
+
+        <section class="panel reveal flex-grow-1" style="--i:5">
+            <div class="panel-title">
+                <h2><i class="bi bi-alarm me-2 text-danger"></i>Upcoming reminders</h2>
+                <a asp-controller="Reminders" asp-action="Create" class="btn btn-soft btn-sm"><i class="bi bi-plus-lg"></i></a>
+            </div>
+
+            @if (Model.UpcomingReminders.Count == 0)
+            {
+                <p class="text-muted mb-0">Nothing scheduled. A reminder at the right time makes a habit much easier to keep.</p>
+            }
+            else
+            {
+                <div class="d-grid gap-2">
+                    @foreach (var reminder in Model.UpcomingReminders)
+                    {
+                        <a class="d-flex align-items-center gap-3 text-reset" asp-controller="Reminders" asp-action="Details" asp-route-id="@reminder.Id">
+                            <div class="reminder-time">
+                                <strong>@reminder.ReminderTime.Day</strong>
+                                <span>@reminder.ReminderTime.ToString("MMM")</span>
+                            </div>
+                            <div class="overflow-hidden">
+                                <div class="fw-semibold text-truncate">@reminder.Message</div>
+                                <small class="text-muted">
+                                    @reminder.Habit?.Name · @reminder.ReminderTime.ToString("HH:mm") ·
+                                    <time data-relative datetime="@reminder.ReminderTime.ToString("yyyy-MM-ddTHH:mm:ss")"></time>
+                                </small>
+                            </div>
+                        </a>
+                    }
+                </div>
+            }
+        </section>
     </div>
 </div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script>
+        HT.chart(document.getElementById('activityChart'), theme => ({
+            type: 'bar',
+            data: {
+                labels: @Json.Serialize(Model.Activity.Select(p => p.Label)),
+                datasets: [{
+                    label: 'Habits done',
+                    data: @Json.Serialize(Model.Activity.Select(p => p.Value)),
+                    backgroundColor: theme.primary,
+                    hoverBackgroundColor: theme.success,
+                    borderRadius: 8,
+                    maxBarThickness: 26
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 7 } },
+                    y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: theme.grid } }
+                }
+            }
+        }));
+    </script>
+}

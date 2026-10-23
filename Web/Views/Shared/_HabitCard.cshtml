@@ -1,0 +1,57 @@
+@model HabitSummary
+@{
+    var habit = Model.Habit;
+    var tone = CategoryStyle.Tone(habit.CategoryId);
+    var showOwner = ViewData["ShowOwner"] as bool? ?? false;
+}
+<article class="card habit-card hover-lift reveal @tone @(Model.DoneToday ? "is-done" : "")"
+         data-habit-card="@habit.Id"
+         data-habit-status="@habit.Id"
+         data-status="@(Model.DoneToday ? "done" : "todo")">
+
+    <div class="d-flex align-items-start gap-3">
+        <span class="tone-icon"><i class="bi @CategoryStyle.Icon(habit.Category?.Name)"></i></span>
+        <div class="flex-grow-1 overflow-hidden">
+            <a class="habit-title d-block text-truncate" asp-controller="Habits" asp-action="Details" asp-route-id="@habit.Id">@habit.Name</a>
+            <p class="habit-goal">@(string.IsNullOrWhiteSpace(habit.Goal) ? "No goal written yet" : habit.Goal)</p>
+        </div>
+        <partial name="_CheckButton" model="Model" />
+    </div>
+
+    <partial name="_DayDots" model="Model" />
+
+    <div>
+        <div class="d-flex justify-content-between small mb-1">
+            <span class="text-muted fw-semibold">Completion rate</span>
+            <span class="fw-bold" data-habit-rate="@habit.Id">@Model.CompletionRate.ToString("0")%</span>
+        </div>
+        <div class="progress-thin">
+            <div class="progress-bar" style="width:0" data-width="@Model.CompletionRate.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-habit-rate-bar="@habit.Id"></div>
+        </div>
+    </div>
+
+    <div class="d-flex align-items-center gap-2 mt-auto">
+        <span class="streak @(Model.CurrentStreak == 0 ? "is-cold" : "")" data-habit-streak="@habit.Id" title="Current streak">
+            <i class="bi bi-fire"></i> <span data-value>@Model.CurrentStreak</span>
+        </span>
+        <span class="chip text-truncate">@habit.Category?.Name</span>
+        @if (showOwner)
+        {
+            <span class="small text-muted text-truncate" title="Owner"><i class="bi bi-person"></i> @habit.User?.Name</span>
+        }
+
+        <div class="dropdown ms-auto">
+            <button class="btn btn-icon btn-sm btn-ghost border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="More actions">
+                <i class="bi bi-three-dots"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" asp-controller="Habits" asp-action="Details" asp-route-id="@habit.Id"><i class="bi bi-graph-up me-2"></i>Progress</a></li>
+                <li><a class="dropdown-item" asp-controller="Habits" asp-action="Edit" asp-route-id="@habit.Id"><i class="bi bi-pencil me-2"></i>Edit</a></li>
+                <li><a class="dropdown-item" asp-controller="Reminders" asp-action="Create" asp-route-habitId="@habit.Id"><i class="bi bi-alarm me-2"></i>Add reminder</a></li>
+                <li><a class="dropdown-item" asp-controller="HabitRecords" asp-action="Create" asp-route-habitId="@habit.Id"><i class="bi bi-calendar-plus me-2"></i>Log a past day</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item text-danger" asp-controller="Habits" asp-action="Delete" asp-route-id="@habit.Id"><i class="bi bi-trash me-2"></i>Delete</a></li>
+            </ul>
+        </div>
+    </div>
+</article>

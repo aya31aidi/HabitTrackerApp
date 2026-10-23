@@ -1,0 +1,38 @@
+@model HabitTrackerApp.Models.HabitRecord
+@{
+    var submitText = ViewData["SubmitText"] as string ?? "Save";
+}
+<div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+<input type="hidden" asp-for="Id" />
+
+<div class="mb-3">
+    <label asp-for="HabitId" class="form-label"></label>
+    <div class="input-icon">
+        <i class="bi bi-check2-circle"></i>
+        <select asp-for="HabitId" class="form-select" asp-items="ViewBag.HabitId">
+            <option value="">Select a habit</option>
+        </select>
+    </div>
+    <span asp-validation-for="HabitId" class="small"></span>
+</div>
+
+<div class="mb-3">
+    <label asp-for="Date" class="form-label"></label>
+    <div class="input-icon">
+        <i class="bi bi-calendar-event"></i>
+        <input asp-for="Date" type="date" class="form-control" max="@DateTime.Today.ToString("yyyy-MM-dd")" />
+    </div>
+    <span asp-validation-for="Date" class="small"></span>
+</div>
+
+<div class="form-check form-switch form-switch-lg mb-4">
+    <input class="form-check-input" asp-for="IsCompleted" role="switch" />
+    <label class="form-check-label fw-semibold" asp-for="IsCompleted">Habit completed that day</label>
+</div>
+
+<div class="d-flex flex-wrap gap-2">
+    <button type="submit" class="btn btn-primary" data-loading-text="Saving...">
+        <i class="bi bi-check-lg me-1"></i> @submitText
+    </button>
+    <a asp-action="Index" class="btn btn-ghost">Cancel</a>
+</div>

@@ -1,0 +1,21 @@
+@model HabitSummary
+@{
+    var today = DateTime.Today.ToString("yyyy-MM-dd");
+    var size = ViewData["Size"] as string;
+}
+@* A real form so the button still works without JavaScript, site.js intercepts the click otherwise *@
+<form asp-controller="Habits" asp-action="Toggle" asp-route-id="@Model.Habit.Id" method="post" class="d-inline-block">
+    <input type="hidden" name="date" value="@today" />
+    <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" />
+    <button type="submit"
+            class="check-btn @size @(Model.DoneToday ? "is-done" : "")"
+            data-toggle-habit
+            data-habit-id="@Model.Habit.Id"
+            data-date="@today"
+            data-url="@Url.Action("Toggle", "Habits", new { id = Model.Habit.Id })"
+            aria-pressed="@(Model.DoneToday ? "true" : "false")"
+            aria-label="Toggle @Model.Habit.Name for today"
+            title="Mark as done today">
+        <i class="bi bi-check-lg"></i>
+    </button>
+</form>

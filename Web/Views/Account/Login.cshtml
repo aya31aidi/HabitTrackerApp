@@ -1,79 +1,57 @@
 ﻿@model HabitTrackerApp.Models.LoginViewModel
 @{
-    ViewData["Title"] = "Login";
-}
-@if (TempData["SuccessMessage"] != null)
-{
-        <div class="alert alert-success alert-dismissible fade show" role="alert" id="successMessage">
-        @TempData["SuccessMessage"]
-        </div>
-
-        <script>
-            setTimeout(function () {
-                var alertBox = document.getElementById("successMessage");
-                if (alertBox) {
-                    alertBox.style.display = "none";
-                }
-            }, 5000); // 5 seconds
-        </script>
-}
-@if (TempData["ErrorMessage"] != null)
-{
-        <div class="alert alert-danger alert-dismissible fade show" role="alert" id="errorMessage">
-        @TempData["ErrorMessage"]
-        </div>
-
-        <script>
-            setTimeout(function () {
-                var alertBox = document.getElementById("errorMessage");
-                if (alertBox) {
-                    alertBox.style.display = "none";
-                }
-            }, 5000); // 5 seconds
-        </script>
+    ViewData["Title"] = "Sign in";
+    Layout = "_AuthLayout";
 }
 
+<a class="brand d-lg-none" asp-controller="Home" asp-action="Index">
+    <span class="brand-logo"><i class="bi bi-check2-all"></i></span>
+    HabitTracker
+</a>
 
-<div class="container d-flex justify-content-center align-items-center min-vh-100">
+<h1 class="mb-1">Welcome back 👋</h1>
+<p class="text-muted mb-4">Sign in to keep the streak going.</p>
 
-    <div class="card shadow-lg p-4" style="width: 100%; max-width: 500px;">
-        <div class="text-center mb-3">
-    <img src="https://r2.erweima.ai/imgcompressed/compressed_a7b893303e5edb4ac59e42fd4ffe092e.webp" alt="App Logo" style="max-width: 160px; height: 160px;" />
-</div>
-        @* <h2 class="text-center text-primary mb-4">🔐Login</h2> *@
+<form asp-action="Login" asp-route-returnUrl="@ViewData["ReturnUrl"]" method="post" data-loading novalidate>
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small mb-3" role="alert"></div>
 
-        <form asp-action="Login" method="post">
-            <div class="form-group mb-3">
-                <label asp-for="Role" class="form-label">Login as</label>
-                <select asp-for="Role" class="form-select" id="roleSelect">
-                    <option value="">-- Select Role --</option>
-                    <option value="Admin">Admin</option>
-                    <option value="User">User</option>
-                </select>
-                <span asp-validation-for="Role" class="text-danger"></span>
-            </div>
-
-            <div class="form-group mb-3">
-                <label asp-for="Email" class="form-label"></label>
-                <input asp-for="Email" class="form-control" placeholder="Enter your email" />
-                <span asp-validation-for="Email" class="text-danger"></span>
-            </div>
-
-            <div class="form-group mb-4">
-                <label asp-for="Password" class="form-label"></label>
-                <input asp-for="Password" type="password" class="form-control" placeholder="Enter your password" />
-                <span asp-validation-for="Password" class="text-danger"></span>
-            </div>
-
-            <button type="submit" class="btn btn-primary w-100">Login</button>
-        </form>
-
-        <div class="text-center mt-3">
-            <p class="mb-1">Don't have an account?</p>
-            <a class="btn btn-outline-secondary w-100" asp-controller="Account" asp-action="Register">
-                Create an Account
-            </a>
+    <div class="mb-3">
+        <label asp-for="Email" class="form-label"></label>
+        <div class="input-icon">
+            <i class="bi bi-envelope"></i>
+            <input asp-for="Email" class="form-control" placeholder="name@example.com" autocomplete="email" autofocus />
         </div>
+        <span asp-validation-for="Email" class="small"></span>
     </div>
-</div>
 
+    <div class="mb-3">
+        <label asp-for="Password" class="form-label"></label>
+        <div class="input-icon">
+            <i class="bi bi-lock"></i>
+            <input asp-for="Password" class="form-control" placeholder="Password" autocomplete="current-password" />
+            <button type="button" class="input-action" data-password-toggle="Password" aria-label="Show password">
+                <i class="bi bi-eye"></i>
+            </button>
+        </div>
+        <span asp-validation-for="Password" class="small"></span>
+    </div>
+
+    <div class="form-check mb-4">
+        <input asp-for="RememberMe" class="form-check-input" />
+        <label asp-for="RememberMe" class="form-check-label"></label>
+    </div>
+
+    <button type="submit" class="btn btn-primary w-100 py-2" data-loading-text="Signing in...">
+        Sign in <i class="bi bi-arrow-right ms-1"></i>
+    </button>
+</form>
+
+<div class="divider-text my-4">New here?</div>
+
+<a class="btn btn-ghost w-100 py-2" asp-controller="Account" asp-action="Register">
+    <i class="bi bi-person-plus me-1"></i> Create a free account
+</a>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

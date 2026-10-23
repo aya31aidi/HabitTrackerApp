@@ -1,36 +1,209 @@
-﻿@model HabitTrackerApp.Models.Habit
+﻿@model HabitDetailsViewModel
 
 @{
-    ViewData["Title"] = "Habit Details";
+    ViewData["Title"] = Model.Habit.Name;
+    var habit = Model.Habit;
+    var summary = Model.Summary;
+    var tone = CategoryStyle.Tone(habit.CategoryId);
+    var today = DateTime.Today;
+    var toggleUrl = Url.Action("Toggle", "Habits", new { id = habit.Id });
 }
 
-<div class="container mt-5">
-    <div class="card shadow-sm border-0">
-        <div class="card-header bg-primary text-white">
-            <h3 class="mb-0"><i class="bi bi-check-circle"></i> Habit Details</h3>
-        </div>
-        <div class="card-body">
-            <dl class="row mb-0">
-                <dt class="col-sm-3 text-secondary">Habit Name</dt>
-                <dd class="col-sm-9">@Model.Name</dd>
+<a asp-action="Index" class="breadcrumb-link"><i class="bi bi-arrow-left"></i> Habits</a>
 
-                <dt class="col-sm-3 text-secondary">Category</dt>
-                <dd class="col-sm-9">@Model.Category.Name</dd>
-
-                <dt class="col-sm-3 text-secondary">Goal</dt>
-                <dd class="col-sm-9">@Model.Goal</dd>
-
-                <dt class="col-sm-3 text-secondary">User</dt>
-                <dd class="col-sm-9">@Model.User.Email</dd>
-            </dl>
+<div class="panel reveal mb-4 @tone">
+    <div class="d-flex flex-wrap align-items-center gap-3">
+        <span class="tone-icon" style="width:58px;height:58px;font-size:1.6rem"><i class="bi @CategoryStyle.Icon(habit.Category?.Name)"></i></span>
+        <div class="flex-grow-1">
+            <h1 class="h3 mb-1">@habit.Name</h1>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <a class="chip" asp-action="Index" asp-route-categoryId="@habit.CategoryId">@habit.Category?.Name</a>
+                @if (User.IsAdmin())
+                {
+                    <small class="text-muted"><i class="bi bi-person"></i> @habit.User?.Name (@habit.User?.Email)</small>
+                }
+            </div>
+            @if (!string.IsNullOrWhiteSpace(habit.Goal))
+            {
+                <p class="text-muted mb-0 mt-2"><i class="bi bi-bullseye me-1"></i>@habit.Goal</p>
+            }
         </div>
-        <div class="card-footer d-flex justify-content-between">
-            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-warning">
-                <i class="bi bi-pencil-square"></i> Edit
-            </a>
-            <a asp-action="Index" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left-circle"></i> Back to List
-            </a>
+        <div class="d-flex align-items-center gap-3">
+            <div class="text-end d-none d-sm-block">
+                <div class="fw-bold">Today</div>
+                <small class="text-muted">tap to check in</small>
+            </div>
+            <partial name="_CheckButton" model="summary" />
         </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="card stat-card reveal" style="--i:1">
+            <span class="stat-icon icon-flame"><i class="bi bi-fire"></i></span>
+            <div>
+                <div class="stat-value" data-habit-streak="@habit.Id"><span data-value>@summary.CurrentStreak</span></div>
+                <div class="stat-label">Current streak</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card stat-card reveal" style="--i:2">
+            <span class="stat-icon icon-warning"><i class="bi bi-trophy"></i></span>
+            <div>
+                <div class="stat-value" data-habit-best="@habit.Id">@summary.BestStreak</div>
+                <div class="stat-label">Best streak</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card stat-card reveal" style="--i:3">
+            <span class="stat-icon icon-success"><i class="bi bi-check2-all"></i></span>
+            <div>
+                <div class="stat-value" data-habit-total="@habit.Id">@summary.TotalCompletions</div>
+                <div class="stat-label">Total check-ins</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card stat-card reveal" style="--i:4">
+            <span class="stat-icon icon-primary"><i class="bi bi-percent"></i></span>
+            <div>
+                <div class="stat-value" data-habit-rate="@habit.Id" data-decimals="1">@summary.CompletionRate.ToString("0.0")%</div>
+                <div class="stat-label">Completion rate</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-xl-8">
+        <section class="panel reveal mb-4" style="--i:2">
+            <div class="panel-title">
+                <h2><i class="bi bi-calendar3 me-2 text-success"></i>Activity calendar</h2>
+                <small class="text-muted">click a day to toggle it</small>
+            </div>
+            <div class="heatmap-wrap">
+                <div class="heatmap">
+                    @foreach (var day in Model.Calendar)
+                    {
+                        var state = day.IsCompleted ? "is-done" : day.HasRecord ? "is-missed" : "";
+                        <button type="button"
+                                class="heat @state @(day.Date == today ? "is-today" : "")"
+                                data-toggle-habit
+                                data-habit-id="@habit.Id"
+                                data-date="@day.Date.ToString("yyyy-MM-dd")"
+                                data-url="@toggleUrl"
+                                title="@day.Date.ToString("ddd d MMM yyyy")@(day.IsCompleted ? " · done" : day.HasRecord ? " · missed" : "")"
+                                aria-label="@day.Date.ToString("D")"></button>
+                    }
+                </div>
+            </div>
+            <div class="d-flex flex-wrap justify-content-between gap-2 mt-3">
+                <div class="heat-legend">
+                    <span class="heat"></span> No record
+                    <span class="heat is-missed ms-2"></span> Missed
+                    <span class="heat is-done ms-2"></span> Done
+                </div>
+                <small class="text-muted">Tracked for @summary.TrackedDays day@(summary.TrackedDays == 1 ? "" : "s")</small>
+            </div>
+        </section>
+
+        <section class="panel reveal" style="--i:3">
+            <div class="panel-title">
+                <h2><i class="bi bi-journal-check me-2 text-primary"></i>Latest records</h2>
+                <a asp-controller="HabitRecords" asp-action="Index" asp-route-habitId="@habit.Id" class="small fw-semibold">Full history <i class="bi bi-arrow-right"></i></a>
+            </div>
+            @if (Model.RecentRecords.Count == 0)
+            {
+                <p class="text-muted mb-0">No records yet. Use the check button above to log today.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-modern">
+                        <tbody>
+                            @foreach (var record in Model.RecentRecords)
+                            {
+                                <tr>
+                                    <td class="fw-semibold">@record.Date.ToString("dddd d MMMM yyyy")</td>
+                                    <td>
+                                        @if (record.IsCompleted)
+                                        {
+                                            <span class="status-pill done"><i class="bi bi-check-circle"></i> Done</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="status-pill missed"><i class="bi bi-x-circle"></i> Missed</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="row-actions">
+                                            <a asp-controller="HabitRecords" asp-action="Edit" asp-route-id="@record.Id" class="btn btn-sm btn-icon" title="Edit"><i class="bi bi-pencil"></i></a>
+                                            <a asp-controller="HabitRecords" asp-action="Delete" asp-route-id="@record.Id" class="btn btn-sm btn-icon text-danger" title="Delete"><i class="bi bi-trash"></i></a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    </div>
+
+    <div class="col-xl-4 d-flex flex-column gap-4">
+        <section class="panel reveal text-center" style="--i:4">
+            <partial name="_ProgressRing" model="summary.CompletionRate"
+                     view-data='new ViewDataDictionary(ViewData) { ["Size"] = 150, ["Label"] = "completion", ["Class"] = "on-surface" }' />
+            <p class="text-muted small mt-3 mb-0">
+                @if (summary.TotalCompletions == 0)
+                {
+                    @:The first check-in starts the story.
+                }
+                else if (summary.LastCompleted == today)
+                {
+                    @:Done today, nice work!
+                }
+                else
+                {
+                    @($"Last done {summary.LastCompleted:dddd d MMM}.")
+                }
+            </p>
+        </section>
+
+        <section class="panel reveal" style="--i:5">
+            <div class="panel-title">
+                <h2><i class="bi bi-alarm me-2 text-danger"></i>Reminders</h2>
+                <a asp-controller="Reminders" asp-action="Create" asp-route-habitId="@habit.Id" class="btn btn-soft btn-sm"><i class="bi bi-plus-lg"></i></a>
+            </div>
+            @if (Model.Reminders.Count == 0)
+            {
+                <p class="text-muted small mb-0">No upcoming reminder for this habit.</p>
+            }
+            else
+            {
+                <div class="d-grid gap-2">
+                    @foreach (var reminder in Model.Reminders)
+                    {
+                        <a class="d-flex align-items-center gap-2 text-reset" asp-controller="Reminders" asp-action="Details" asp-route-id="@reminder.Id">
+                            <i class="bi bi-bell text-primary"></i>
+                            <span class="flex-grow-1 text-truncate">@reminder.Message</span>
+                            <small class="text-muted">@reminder.ReminderTime.ToString("d MMM, HH:mm")</small>
+                        </a>
+                    }
+                </div>
+            }
+        </section>
+
+        <section class="panel reveal" style="--i:6">
+            <h2 class="h6 mb-3">Actions</h2>
+            <div class="d-grid gap-2">
+                <a asp-action="Edit" asp-route-id="@habit.Id" class="btn btn-ghost text-start"><i class="bi bi-pencil me-2"></i>Edit habit</a>
+                <a asp-controller="HabitRecords" asp-action="Create" asp-route-habitId="@habit.Id" class="btn btn-ghost text-start"><i class="bi bi-calendar-plus me-2"></i>Log a past day</a>
+                <a asp-action="Delete" asp-route-id="@habit.Id" class="btn btn-ghost text-start text-danger"><i class="bi bi-trash me-2"></i>Delete habit</a>
+            </div>
+        </section>
     </div>
 </div>

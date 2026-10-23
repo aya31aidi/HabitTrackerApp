@@ -7,36 +7,54 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using HabitTrackerApp.Models;
 using Web.Data;
+using Web.Services;
 
 namespace Web.Controllers
 {
-    public class RemindersController : Controller
+    public class RemindersController : AppController
     {
         private readonly WebContext _context;
+        private readonly HabitStatsService _stats;
 
-        public RemindersController(WebContext context)
+        public RemindersController(WebContext context, HabitStatsService stats)
         {
             _context = context;
+            _stats = stats;
         }
 
         // GET: Reminders
         public async Task<IActionResult> Index()
         {
-            var role = HttpContext.Session.GetString("Role");
-            var email = HttpContext.Session.GetString("Email");
+            var reminders = await VisibleReminders()
+                .Include(r => r.Habit)
+                    .ThenInclude(h => h!.Category)
+                .Include(r => r.User)
+                .OrderBy(r => r.ReminderTime)
+                .ToListAsync();
 
-            ViewBag.Role = role;
-            ViewBag.Email = email;
+            ViewBag.IsAdmin = IsAdmin;
+            return View(reminders);
+        }
 
-            IQueryable<Reminder> reminders = _context.Reminders.Include(r => r.Habit)
-                .Include(r => r.User);
+        // GET: Reminders/Upcoming : polled by site.js to raise browser notifications
+        [HttpGet]
+        public async Task<IActionResult> Upcoming()
+        {
+            var now = DateTime.Now;
+            var reminders = await VisibleReminders()
+                .Include(r => r.Habit)
+                .Where(r => r.ReminderTime >= now.AddMinutes(-1) && r.ReminderTime <= now.AddHours(24))
+                .OrderBy(r => r.ReminderTime)
+                .Select(r => new
+                {
+                    id = r.Id,
+                    message = r.Message,
+                    habit = r.Habit!.Name,
+                    time = r.ReminderTime.ToString("yyyy-MM-ddTHH:mm:ss")
+                })
+                .ToListAsync();
 
-            if (role != "Admin")
-            {
-                reminders = reminders.Where(r => r.User.Email == email);
-            }
-
-            return View(await reminders.ToListAsync());
+            return Json(reminders);
         }
 
         // GET: Reminders/Details/5
@@ -47,8 +65,9 @@ namespace Web.Controllers
                 return NotFound();
             }
 
-            var reminder = await _context.Reminders
+            var reminder = await VisibleReminders()
                 .Include(r => r.Habit)
+                    .ThenInclude(h => h!.Category)
                 .Include(r => r.User)
                 .FirstOrDefaultAsync(m => m.Id == id);
             if (reminder == null)
@@ -59,33 +78,40 @@ namespace Web.Controllers
             return View(reminder);
         }
 
-        // GET: Reminders/Create
-        public IActionResult Create()
+        // GET: Reminders/Create?habitId=3
+        public async Task<IActionResult> Create(int? habitId)
         {
-            ViewData["HabitId"] = new SelectList(_context.Habits, "Id", "Goal");
-            ViewData["UserId"] = new SelectList(_context.Users, "Id", "Email");
-            return View();
+            await FillHabitsAsync(habitId);
+
+            // Suggest the next round hour so the picker doesn't start in the past
+            var suggestion = DateTime.Now.Date.AddHours(DateTime.Now.Hour + 1);
+            return View(new Reminder { HabitId = habitId ?? 0, ReminderTime = suggestion });
         }
 
         // POST: Reminders/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,Message,ReminderTime,HabitId,UserId")] Reminder reminder)
+        public async Task<IActionResult> Create([Bind("Id,Message,ReminderTime,HabitId")] Reminder reminder)
         {
-            var role = HttpContext.Session.GetString("Role");
-            var email = HttpContext.Session.GetString("Email");
-
-            if (role != "Admin")
+            var habit = await _stats.VisibleHabits(User).FirstOrDefaultAsync(h => h.Id == reminder.HabitId);
+            if (habit == null)
             {
-                var currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
-                if (currentUser != null)
-                {
-                    reminder.UserId = currentUser.Id;
-                }
+                ModelState.AddModelError(nameof(Reminder.HabitId), "Please pick one of the habits.");
             }
+
+            if (!ModelState.IsValid)
+            {
+                await FillHabitsAsync(reminder.HabitId);
+                return View(reminder);
+            }
+
+            // The reminder always belongs to the owner of the habit
+            reminder.UserId = habit!.UserId;
 
             _context.Add(reminder);
             await _context.SaveChangesAsync();
+
+            NotifySuccess("Reminder scheduled.");
             return RedirectToAction(nameof(Index));
         }
 
@@ -97,37 +123,44 @@ namespace Web.Controllers
                 return NotFound();
             }
 
-            var reminder = await _context.Reminders.FindAsync(id);
+            var reminder = await VisibleReminders().FirstOrDefaultAsync(r => r.Id == id);
             if (reminder == null)
             {
                 return NotFound();
             }
-            ViewData["HabitId"] = new SelectList(_context.Habits, "Id", "Goal", reminder.HabitId);
-            ViewData["UserId"] = new SelectList(_context.Users, "Id", "Email", reminder.UserId);
+
+            await FillHabitsAsync(reminder.HabitId);
             return View(reminder);
         }
 
         // POST: Reminders/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Message,ReminderTime,HabitId,UserId")] Reminder reminder)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,Message,ReminderTime,HabitId")] Reminder reminder)
         {
             if (id != reminder.Id)
             {
                 return NotFound();
             }
 
-            var role = HttpContext.Session.GetString("Role");
-            var email = HttpContext.Session.GetString("Email");
-
-            if (role != "Admin")
+            if (!await VisibleReminders().AnyAsync(r => r.Id == id))
             {
-                var currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
-                if (currentUser != null)
-                {
-                    reminder.UserId = currentUser.Id;
-                }
+                return NotFound();
             }
+
+            var habit = await _stats.VisibleHabits(User).FirstOrDefaultAsync(h => h.Id == reminder.HabitId);
+            if (habit == null)
+            {
+                ModelState.AddModelError(nameof(Reminder.HabitId), "Please pick one of the habits.");
+            }
+
+            if (!ModelState.IsValid)
+            {
+                await FillHabitsAsync(reminder.HabitId);
+                return View(reminder);
+            }
+
+            reminder.UserId = habit!.UserId;
 
             try
             {
@@ -136,7 +169,7 @@ namespace Web.Controllers
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!_context.Reminders.Any(r => r.Id == reminder.Id))
+                if (!ReminderExists(reminder.Id))
                 {
                     return NotFound();
                 }
@@ -146,6 +179,7 @@ namespace Web.Controllers
                 }
             }
 
+            NotifySuccess("Reminder updated.");
             return RedirectToAction(nameof(Index));
         }
 
@@ -157,7 +191,7 @@ namespace Web.Controllers
                 return NotFound();
             }
 
-            var reminder = await _context.Reminders
+            var reminder = await VisibleReminders()
                 .Include(r => r.Habit)
                 .Include(r => r.User)
                 .FirstOrDefaultAsync(m => m.Id == id);
@@ -174,15 +208,36 @@ namespace Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var reminder = await _context.Reminders.FindAsync(id);
+            var reminder = await VisibleReminders().FirstOrDefaultAsync(r => r.Id == id);
             if (reminder != null)
             {
                 _context.Reminders.Remove(reminder);
                 await _context.SaveChangesAsync();
 
-                TempData["SuccessMessage"] = "The reminder has been successfully deleted.";
+                NotifySuccess("The reminder has been successfully deleted.");
             }
             return RedirectToAction(nameof(Index));
+        }
+
+        private IQueryable<Reminder> VisibleReminders()
+        {
+            if (IsAdmin)
+                return _context.Reminders;
+
+            var userId = CurrentUserId;
+            return _context.Reminders.Where(r => r.UserId == userId);
+        }
+
+        private async Task FillHabitsAsync(int? selectedId)
+        {
+            var habits = await _stats.VisibleHabits(User)
+                .Include(h => h.User)
+                .OrderBy(h => h.Name)
+                .ToListAsync();
+
+            // Show the habit name (the goal was shown before, which is often empty)
+            var items = habits.Select(h => new { h.Id, Label = IsAdmin ? $"{h.Name} ({h.User?.Name})" : h.Name });
+            ViewData["HabitId"] = new SelectList(items, "Id", "Label", selectedId);
         }
 
         private bool ReminderExists(int id)

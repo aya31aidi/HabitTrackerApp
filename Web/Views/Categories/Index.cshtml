@@ -1,77 +1,95 @@
-﻿@model IEnumerable<HabitTrackerApp.Models.Category>
+﻿@model IEnumerable<CategoryCard>
 
 @{
-    ViewData["Title"] = "Category List";
+    ViewData["Title"] = "Categories";
+    var isAdmin = ViewBag.IsAdmin == true;
+    var index = 0;
 }
 
-<!-- Display success message -->
-@if (TempData["SuccessMessage"] != null)
-{
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-        @TempData["SuccessMessage"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-}
-
-<div class="container mt-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="text-primary">Categories</h2>
-        <a asp-action="Create" class="btn btn-success">
-            <i class="bi bi-plus-circle"></i> Create New Category
-        </a>
+<div class="page-header">
+    <div>
+        <h1>Categories</h1>
+        <p>Group habits by area of life and see where the effort goes.</p>
     </div>
-
-    <div class="table-responsive">
-        <table class="table table-striped table-bordered align-middle">
-            <thead class="table-dark">
-                <tr>
-                    <th>@Html.DisplayNameFor(model => model.First().Name)</th>
-                    <th>Habits Lists</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var item in Model)
-                {
-                        <tr>
-                            <td>@item.Name</td>
-                            <td>
-                                <a asp-controller="Habits" asp-action="ByCategory" asp-route-id="@item.Id" class="btn btn-outline-primary btn-sm me-2">
-                                <i class="bi bi-list-task"></i> Habits
-                                </a> 
-                                </td>
-                            <td>
-                                <div class="d-flex gap-2">
-                                         <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-outline-info btn-sm me-2">
-                                            <i class="bi bi-info-circle"></i> Details
-                                        </a>
-                                        <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-outline-warning btn-sm me-2">
-                                            <i class="bi bi-pencil-square"></i> Edit
-                                        </a>
-                                        <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-outline-danger btn-sm">
-                                            <i class="bi bi-trash"></i> Delete
-                                        </a>
-                                </div>
-                            </td>
-                        </tr>
-                }
-            </tbody>
-        </table>
+    <div class="d-flex flex-wrap gap-2">
+        <div class="search-box">
+            <i class="bi bi-search"></i>
+            <input type="search" class="form-control" placeholder="Search categories..." data-filter-input aria-label="Search categories" />
+        </div>
+        @if (isAdmin)
+        {
+            <a asp-action="Create" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> New category</a>
+        }
     </div>
 </div>
 
-@section Scripts {
-                <script>
-                    setTimeout(function () {
-                        var alertEl = document.querySelector('.alert');
-                        if (alertEl) {
-                            alertEl.classList.remove('show');
-                            setTimeout(() => {
-                                var alert = bootstrap.Alert.getOrCreateInstance(alertEl);
-                                alert.close();
-                            }, 300); // temps du fade
-                        }
-                    }, 5000);
-                </script>
+@if (!Model.Any())
+{
+    <div class="panel empty-state reveal">
+        <div class="empty-icon"><i class="bi bi-tags"></i></div>
+        <h3>No categories yet</h3>
+        <p>@(isAdmin ? "Categories like Health, Learning or Work help organize the habits." : "An administrator needs to create categories before habits can be added.")</p>
+        @if (isAdmin)
+        {
+            <a asp-action="Create" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> Create a category</a>
+        }
+    </div>
 }
+else
+{
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-xl-3 row-cols-xxl-4 g-4">
+        @foreach (var card in Model)
+        {
+            var category = card.Category;
+            var percent = card.HabitCount == 0 ? 0 : card.DoneToday * 100.0 / card.HabitCount;
+            <div class="col" style="--i:@(index++)" data-filter-item data-filter-text="@category.Name">
+                <div class="card category-card hover-lift reveal @CategoryStyle.Tone(category.Id)">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="tone-icon"><i class="bi @CategoryStyle.Icon(category.Name)"></i></span>
+                        <div class="flex-grow-1 overflow-hidden">
+                            <a class="h5 mb-0 d-block text-truncate text-reset" asp-action="Details" asp-route-id="@category.Id">@category.Name</a>
+                            <small class="text-muted">@card.HabitCount @(card.HabitCount == 1 ? "habit" : "habits")</small>
+                        </div>
+                        @if (isAdmin)
+                        {
+                            <div class="dropdown">
+                                <button class="btn btn-icon btn-sm btn-ghost border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="More actions">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" asp-action="Edit" asp-route-id="@category.Id"><i class="bi bi-pencil me-2"></i>Rename</a></li>
+                                    <li><a class="dropdown-item text-danger" asp-action="Delete" asp-route-id="@category.Id"><i class="bi bi-trash me-2"></i>Delete</a></li>
+                                </ul>
+                            </div>
+                        }
+                    </div>
 
+                    <div>
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span class="text-muted fw-semibold">Done today</span>
+                            <span class="fw-bold">@card.DoneToday / @card.HabitCount</span>
+                        </div>
+                        <div class="progress-thin">
+                            <div class="progress-bar" style="width:0" data-width="@percent.ToString("0", System.Globalization.CultureInfo.InvariantCulture)"></div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-auto">
+                        <a asp-controller="Habits" asp-action="Index" asp-route-categoryId="@category.Id" class="btn btn-soft btn-sm flex-grow-1">
+                            <i class="bi bi-list-task me-1"></i> View habits
+                        </a>
+                        <a asp-controller="Habits" asp-action="Create" asp-route-categoryId="@category.Id" class="btn btn-ghost btn-sm" title="Add a habit in this category">
+                            <i class="bi bi-plus-lg"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="panel empty-state d-none mt-2" data-filter-empty>
+        <div class="empty-icon"><i class="bi bi-search"></i></div>
+        <h3>No category matches</h3>
+        <p>Try another word.</p>
+    </div>
+}

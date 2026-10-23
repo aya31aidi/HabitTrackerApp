@@ -1,0 +1,63 @@
+@model HabitTrackerApp.Models.Habit
+@* Live preview next to the habit form, kept in sync by the script below *@
+<div class="position-sticky" style="top: 90px">
+    <small class="text-muted fw-bold text-uppercase d-block mb-2" style="letter-spacing:.06em">Live preview</small>
+    <article class="card habit-card tone-0" id="habitPreview">
+        <div class="d-flex align-items-start gap-3">
+            <span class="tone-icon"><i class="bi bi-tag"></i></span>
+            <div class="flex-grow-1 overflow-hidden">
+                <div class="habit-title text-truncate" data-preview-target="name">@(string.IsNullOrWhiteSpace(Model.Name) ? "New habit" : Model.Name)</div>
+                <p class="habit-goal" data-preview-target="goal">@(string.IsNullOrWhiteSpace(Model.Goal) ? "No goal written yet" : Model.Goal)</p>
+            </div>
+            <span class="check-btn"><i class="bi bi-check-lg"></i></span>
+        </div>
+        <div class="day-dots">
+            @for (var i = 6; i >= 0; i--)
+            {
+                <span class="day-dot @(i == 0 ? "is-today" : "")"><span class="dot"></span>@(i == 0 ? "Today" : DateTime.Today.AddDays(-i).ToString("ddd")[..2])</span>
+            }
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="streak is-cold"><i class="bi bi-fire"></i> 0</span>
+            <span class="chip" data-preview-target="category">Category</span>
+        </div>
+    </article>
+
+    <div class="panel mt-3">
+        <h3 class="h6"><i class="bi bi-lightbulb text-warning me-1"></i> Tips for habits that stick</h3>
+        <ul class="small text-muted mb-0 ps-3">
+            <li>Make it small enough to do on a bad day.</li>
+            <li>Attach it to something already done daily ("after coffee...").</li>
+            <li>Never miss twice in a row: one gap is fine, two starts a new pattern.</li>
+        </ul>
+    </div>
+</div>
+
+<script>
+    (function () {
+        const preview = document.getElementById('habitPreview');
+        if (!preview) return;
+
+        const fallbacks = { name: 'New habit', goal: 'No goal written yet', category: 'Category' };
+        const tones = 8;
+
+        document.querySelectorAll('[data-preview]').forEach(input => {
+            const key = input.dataset.preview;
+            const target = preview.querySelector('[data-preview-target="' + key + '"]');
+
+            const update = () => {
+                let value = input.value.trim();
+                if (input.tagName === 'SELECT') {
+                    value = input.value ? input.options[input.selectedIndex].text : '';
+                    // Same color rule as CategoryStyle.Tone on the server
+                    preview.className = preview.className.replace(/tone-\d/, 'tone-' + (Math.abs(parseInt(input.value || '0', 10)) % tones));
+                }
+                target.textContent = value || fallbacks[key];
+            };
+
+            input.addEventListener('input', update);
+            input.addEventListener('change', update);
+            update();
+        });
+    })();
+</script>

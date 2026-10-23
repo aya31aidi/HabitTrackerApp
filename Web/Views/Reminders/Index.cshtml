@@ -2,73 +2,80 @@
 
 @{
     ViewData["Title"] = "Reminders";
+    var isAdmin = ViewBag.IsAdmin == true;
+    var now = DateTime.Now;
+    var upcoming = Model.Where(r => r.ReminderTime >= now).OrderBy(r => r.ReminderTime).ToList();
+    var past = Model.Where(r => r.ReminderTime < now).OrderByDescending(r => r.ReminderTime).ToList();
 }
 
-<!-- Display success message -->
-@if (TempData["SuccessMessage"] != null)
-{
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-        @TempData["SuccessMessage"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-}
-
-<div class="container mt-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="text-primary">Reminders</h2>
-        <a asp-action="Create" class="btn btn-success">
-            <i class="bi bi-plus-circle"></i> Create New Reminder
-        </a>
+<div class="page-header">
+    <div>
+        <h1>Reminders</h1>
+        <p>@upcoming.Count upcoming · @past.Count past. Reminders pop up while the app is open.</p>
     </div>
-
-    <div class="table-responsive">
-        <table class="table table-striped table-bordered align-middle">
-            <thead class="table-dark">
-                <tr>
-                    <th>@Html.DisplayNameFor(model => model.First().Message)</th>
-                    <th>@Html.DisplayNameFor(model => model.First().ReminderTime)</th>
-                    <th>@Html.DisplayNameFor(model => model.First().Habit.Goal)</th>
-                    <th>@Html.DisplayNameFor(model => model.First().User.Email)</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var item in Model)
-                {
-                        <tr>
-                            <td>@item.Message</td>
-                            <td>@item.ReminderTime.ToString("yyyy-MM-dd HH:mm")</td>
-                            <td>@item.Habit?.Goal</td>
-                            <td>@item.User?.Email</td>
-                            <td>
-                                <div class="d-flex gap-2">
-                                    <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-outline-info btn-sm">
-                                        <i class="bi bi-info-circle"></i> Details
-                                    </a>
-                                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-outline-warning btn-sm">
-                                        <i class="bi bi-pencil-square"></i> Edit
-                                    </a>
-                                    <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-outline-danger btn-sm">
-                                        <i class="bi bi-trash"></i> Delete
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                }
-            </tbody>
-        </table>
+    <div class="d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-ghost" data-enable-notifications>
+            <i class="bi bi-bell me-1"></i> Enable notifications
+        </button>
+        <a asp-action="Create" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> New reminder</a>
     </div>
 </div>
 
-@section Scripts {
-        <script>
-            // Close the alert after 5 seconds
-            setTimeout(function () {
-                var alert = document.querySelector('.alert');
-                if (alert) {
-                    alert.classList.remove('show');
-                    alert.classList.add('fade');
-                }
-            }, 5000);
-        </script>
+@if (!Model.Any())
+{
+    <div class="panel empty-state reveal">
+        <div class="empty-icon"><i class="bi bi-alarm"></i></div>
+        <h3>No reminders yet</h3>
+        <p>A nudge at the right moment is often all it takes. Schedule one for a habit that tends to slip.</p>
+        <a asp-action="Create" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> Schedule a reminder</a>
+    </div>
+}
+else
+{
+    <ul class="nav nav-pills gap-2 mb-3" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="filter-pill active" data-bs-toggle="pill" data-bs-target="#tab-upcoming" type="button" role="tab">
+                <i class="bi bi-hourglass-split"></i> Upcoming <span class="badge rounded-pill text-bg-light ms-1">@upcoming.Count</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="filter-pill" data-bs-toggle="pill" data-bs-target="#tab-past" type="button" role="tab">
+                <i class="bi bi-clock-history"></i> Past <span class="badge rounded-pill text-bg-light ms-1">@past.Count</span>
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <div class="tab-pane fade show active" id="tab-upcoming" role="tabpanel">
+            @if (upcoming.Count == 0)
+            {
+                <div class="panel text-muted">Nothing scheduled ahead.</div>
+            }
+            else
+            {
+                <div class="d-grid gap-3">
+                    @{ var i = 0; }
+                    @foreach (var item in upcoming)
+                    {
+                        <partial name="_ReminderItem" model="item" view-data='new ViewDataDictionary(ViewData) { ["Index"] = i++, ["IsAdmin"] = isAdmin }' />
+                    }
+                </div>
+            }
+        </div>
+        <div class="tab-pane fade" id="tab-past" role="tabpanel">
+            @if (past.Count == 0)
+            {
+                <div class="panel text-muted">No past reminders.</div>
+            }
+            else
+            {
+                <div class="d-grid gap-3">
+                    @foreach (var item in past)
+                    {
+                        <partial name="_ReminderItem" model="item" view-data='new ViewDataDictionary(ViewData) { ["IsAdmin"] = isAdmin }' />
+                    }
+                </div>
+            }
+        </div>
+    </div>
 }

@@ -1,33 +1,46 @@
 ﻿@model HabitTrackerApp.Models.HabitRecord
 
 @{
-    ViewData["Title"] = "Habit Record Details";
+    ViewData["Title"] = "Record Details";
 }
 
-<div class="container mt-5">
-    <div class="card shadow-sm border-0">
-        <div class="card-header bg-success text-white">
-            <h3 class="mb-0"><i class="bi bi-clipboard-check"></i> Habit Record Details</h3>
-        </div>
-        <div class="card-body">
-            <dl class="row mb-0">
-                <dt class="col-sm-3 text-secondary">Date</dt>
-                <dd class="col-sm-9">@Model.Date.ToString("yyyy-MM-dd")</dd>
+<a asp-action="Index" class="breadcrumb-link"><i class="bi bi-arrow-left"></i> History</a>
 
-                <dt class="col-sm-3 text-secondary">Completed</dt>
-                <dd class="col-sm-9">@Model.IsCompleted</dd>
+<div class="row justify-content-center">
+    <div class="col-lg-7 col-xl-6">
+        <div class="panel reveal">
+            <div class="d-flex align-items-center gap-3 mb-4">
+                <span class="stat-icon @(Model.IsCompleted ? "icon-success" : "icon-danger")" style="width:56px;height:56px;border-radius:16px;display:grid;place-items:center;font-size:1.5rem">
+                    <i class="bi @(Model.IsCompleted ? "bi-check2-circle" : "bi-x-circle")"></i>
+                </span>
+                <div>
+                    <h1 class="h4 mb-0">@Model.Habit?.Name</h1>
+                    <span class="text-muted">@Model.Date.ToString("dddd d MMMM yyyy")</span>
+                </div>
+            </div>
 
-                <dt class="col-sm-3 text-secondary">Habit Goal</dt>
-                <dd class="col-sm-9">@Model.Habit.Goal</dd>
+            <dl class="detail-list">
+                <div>
+                    <dt>Status</dt>
+                    <dd>
+                        @if (Model.IsCompleted)
+                        {
+                            <span class="status-pill done"><i class="bi bi-check-circle"></i> Done</span>
+                        }
+                        else
+                        {
+                            <span class="status-pill missed"><i class="bi bi-x-circle"></i> Missed</span>
+                        }
+                    </dd>
+                </div>
+                <div><dt>Category</dt><dd><span class="chip @CategoryStyle.Tone(Model.Habit?.CategoryId ?? 0)">@Model.Habit?.Category?.Name</span></dd></div>
+                <div><dt>Habit goal</dt><dd>@(string.IsNullOrWhiteSpace(Model.Habit?.Goal) ? "—" : Model.Habit.Goal)</dd></div>
             </dl>
-        </div>
-        <div class="card-footer d-flex justify-content-between">
-            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-warning">
-                <i class="bi bi-pencil-square"></i> Edit
-            </a>
-            <a asp-action="Index" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left-circle"></i> Back to List
-            </a>
+
+            <div class="d-flex flex-wrap gap-2 mt-4">
+                <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary"><i class="bi bi-pencil me-1"></i> Edit</a>
+                <a asp-controller="Habits" asp-action="Details" asp-route-id="@Model.HabitId" class="btn btn-ghost"><i class="bi bi-graph-up me-1"></i> Habit progress</a>
+            </div>
         </div>
     </div>
 </div>

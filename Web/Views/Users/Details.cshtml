@@ -1,36 +1,88 @@
 ﻿@model HabitTrackerApp.Models.User
 
 @{
-    ViewData["Title"] = "User Details";
+    ViewData["Title"] = Model.Name;
+    var habits = (List<HabitSummary>)ViewBag.Habits;
+    var upcomingReminders = Model.Reminders.Count(r => r.ReminderTime >= DateTime.Now);
 }
 
-<div class="container mt-5">
-    <div class="card shadow-sm border-0">
-        <div class="card-header bg-primary text-white">
-            <h3 class="mb-0"><i class="bi bi-person-circle"></i> User Details</h3>
-        </div>
-        <div class="card-body">
-            <dl class="row mb-0">
-                <dt class="col-sm-3 text-secondary">Name</dt>
-                <dd class="col-sm-9">@Model.Name</dd>
+<a asp-action="Index" class="breadcrumb-link"><i class="bi bi-arrow-left"></i> Users</a>
 
-                <dt class="col-sm-3 text-secondary">Email</dt>
-                <dd class="col-sm-9">@Model.Email</dd>
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="panel reveal text-center">
+            <span class="avatar avatar-lg mb-3">@ClaimsPrincipalExtensions.Initials(Model.Name)</span>
+            <h1 class="h4 mb-1">@Model.Name</h1>
+            <p class="text-muted mb-3">@Model.Email</p>
 
-                <dt class="col-sm-3 text-secondary">Password</dt>
-                <dd class="col-sm-9">********</dd>
-
-                <dt class="col-sm-3 text-secondary">Created At</dt>
-                <dd class="col-sm-9">@Model.CreatedAt.ToString("yyyy-MM-dd HH:mm")</dd>
+            <dl class="detail-list text-start">
+                <div><dt>Member since</dt><dd>@Model.CreatedAt.ToString("d MMMM yyyy")</dd></div>
+                <div><dt>Habits</dt><dd>@habits.Count</dd></div>
+                <div><dt>Done today</dt><dd>@habits.Count(h => h.DoneToday) / @habits.Count</dd></div>
+                <div><dt>Upcoming reminders</dt><dd>@upcomingReminders</dd></div>
             </dl>
+
+            <div class="d-flex gap-2 mt-4">
+                <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary flex-grow-1"><i class="bi bi-pencil me-1"></i> Edit</a>
+                <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-ghost text-danger" title="Delete"><i class="bi bi-trash"></i></a>
+            </div>
         </div>
-        <div class="card-footer d-flex justify-content-between">
-            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-warning">
-                <i class="bi bi-pencil-square"></i> Edit
-            </a>
-            <a asp-action="Index" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left-circle"></i> Back to List
-            </a>
-        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <section class="panel reveal" style="--i:1">
+            <div class="panel-title">
+                <h2><i class="bi bi-check2-circle me-2 text-primary"></i>Habits</h2>
+            </div>
+            @if (habits.Count == 0)
+            {
+                <p class="text-muted mb-0">This user hasn't created any habit yet.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-modern">
+                        <thead>
+                            <tr>
+                                <th>Habit</th>
+                                <th style="min-width:150px">Completion</th>
+                                <th class="text-center">Streak</th>
+                                <th class="text-center">Today</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in habits)
+                            {
+                                <tr>
+                                    <td>
+                                        <a asp-controller="Habits" asp-action="Details" asp-route-id="@item.Habit.Id" class="fw-semibold text-reset">@item.Habit.Name</a>
+                                        <div><span class="chip @CategoryStyle.Tone(item.Habit.CategoryId)">@item.Habit.Category?.Name</span></div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="progress-thin flex-grow-1">
+                                                <div class="progress-bar" style="width:0" data-width="@item.CompletionRate.ToString(System.Globalization.CultureInfo.InvariantCulture)"></div>
+                                            </div>
+                                            <span class="small fw-bold">@item.CompletionRate.ToString("0")%</span>
+                                        </div>
+                                    </td>
+                                    <td class="text-center"><span class="streak @(item.CurrentStreak == 0 ? "is-cold" : "")"><i class="bi bi-fire"></i> @item.CurrentStreak</span></td>
+                                    <td class="text-center">
+                                        @if (item.DoneToday)
+                                        {
+                                            <span class="status-pill done"><i class="bi bi-check-lg"></i></span>
+                                        }
+                                        else
+                                        {
+                                            <span class="status-pill past"><i class="bi bi-dash"></i></span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
     </div>
 </div>

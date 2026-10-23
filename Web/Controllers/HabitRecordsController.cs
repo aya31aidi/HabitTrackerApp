@@ -7,38 +7,51 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using HabitTrackerApp.Models;
 using Web.Data;
+using Web.Services;
 
 namespace Web.Controllers
 {
-    public class HabitRecordsController : Controller
+    public class HabitRecordsController : AppController
     {
         private readonly WebContext _context;
+        private readonly HabitStatsService _stats;
 
-        public HabitRecordsController(WebContext context)
+        public HabitRecordsController(WebContext context, HabitStatsService stats)
         {
             _context = context;
+            _stats = stats;
         }
 
-        // GET: HabitRecords
-        public async Task<IActionResult> Index()
+        // GET: HabitRecords?habitId=3&status=done
+        public async Task<IActionResult> Index(int? habitId, string? status)
         {
-            
-            var role = HttpContext.Session.GetString("Role");
-            var email = HttpContext.Session.GetString("Email");
-
-            ViewBag.Role = role;
-
-            IQueryable<HabitRecord> habitRecordsQuery = _context.HabitRecords
+            var records = VisibleRecords()
                 .Include(hr => hr.Habit)
-                    .ThenInclude(h => h.User) as IQueryable<HabitRecord>;
+                    .ThenInclude(h => h!.User)
+                .Include(hr => hr.Habit)
+                    .ThenInclude(h => h!.Category)
+                .AsQueryable();
 
-            if (role != "Admin")
+            if (habitId.HasValue)
             {
-                habitRecordsQuery = habitRecordsQuery
-                    .Where(hr => hr.Habit.User.Email == email);
+                records = records.Where(hr => hr.HabitId == habitId.Value);
             }
 
-            return View(await habitRecordsQuery.ToListAsync());
+            if (status == "done")
+            {
+                records = records.Where(hr => hr.IsCompleted);
+            }
+            else if (status == "missed")
+            {
+                records = records.Where(hr => !hr.IsCompleted);
+            }
+
+            ViewBag.IsAdmin = IsAdmin;
+            ViewBag.Status = status;
+            ViewBag.HabitId = habitId;
+            ViewBag.Habits = new SelectList(await _stats.VisibleHabits(User).OrderBy(h => h.Name).ToListAsync(), "Id", "Name", habitId);
+
+            return View(await records.OrderByDescending(hr => hr.Date).ThenBy(hr => hr.Habit!.Name).ToListAsync());
         }
 
         // GET: HabitRecords/Details/5
@@ -49,8 +62,9 @@ namespace Web.Controllers
                 return NotFound();
             }
 
-            var habitRecord = await _context.HabitRecords
+            var habitRecord = await VisibleRecords()
                 .Include(h => h.Habit)
+                    .ThenInclude(h => h!.Category)
                 .FirstOrDefaultAsync(m => m.Id == id);
             if (habitRecord == null)
             {
@@ -60,53 +74,44 @@ namespace Web.Controllers
             return View(habitRecord);
         }
 
-        // GET: HabitRecords/Create
-        public IActionResult Create()
+        // GET: HabitRecords/Create?habitId=3
+        public async Task<IActionResult> Create(int? habitId)
         {
-            var role = HttpContext.Session.GetString("Role");
-            var email = HttpContext.Session.GetString("Email");
-
-            ViewBag.Role = role;
-
-            if (role == "Admin")
-            {
-                ViewData["HabitId"] = new SelectList(_context.Habits.Include(h => h.User), "Id", "Name");
-            }
-            else
-            {
-                var userHabits = _context.Habits
-                    .Include(h => h.User)
-                    .Where(h => h.User.Email == email);
-
-                ViewData["HabitId"] = new SelectList(userHabits, "Id", "Name");
-            }
-
-            return View();
+            await FillHabitsAsync(habitId);
+            return View(new HabitRecord { Date = DateTime.Today, IsCompleted = true, HabitId = habitId ?? 0 });
         }
 
         // POST: HabitRecords/Create
-      
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Id,Date,IsCompleted,HabitId")] HabitRecord habitRecord)
         {
-            var role = HttpContext.Session.GetString("Role");
-            var email = HttpContext.Session.GetString("Email");
+            await ValidateRecordAsync(habitRecord);
 
-            if (role != "Admin")
+            if (!ModelState.IsValid)
             {
-                var habit = await _context.Habits
-                    .Include(h => h.User)
-                    .FirstOrDefaultAsync(h => h.Id == habitRecord.HabitId);
-
-                if (habit == null || habit.User.Email != email)
-                {
-                    return Forbid(); // User trying to create record for someone else's habit
-                }
+                await FillHabitsAsync(habitRecord.HabitId);
+                return View(habitRecord);
             }
 
-            _context.Add(habitRecord);
+            habitRecord.Date = habitRecord.Date.Date;
+
+            // One record per habit and day: update the existing one instead of duplicating it
+            var existing = await _context.HabitRecords
+                .FirstOrDefaultAsync(r => r.HabitId == habitRecord.HabitId && r.Date == habitRecord.Date);
+            if (existing != null)
+            {
+                existing.IsCompleted = habitRecord.IsCompleted;
+                NotifySuccess("A record already existed for that day, it has been updated.");
+            }
+            else
+            {
+                _context.Add(habitRecord);
+                NotifySuccess("Record saved.");
+            }
+
             await _context.SaveChangesAsync();
+            await _stats.RefreshStatisticAsync(habitRecord.HabitId);
             return RedirectToAction(nameof(Index));
         }
 
@@ -115,34 +120,10 @@ namespace Web.Controllers
         {
             if (id == null) return NotFound();
 
-            var habitRecord = await _context.HabitRecords
-                .Include(hr => hr.Habit)
-                .ThenInclude(h => h.User)
-                .FirstOrDefaultAsync(hr => hr.Id == id);
-
+            var habitRecord = await VisibleRecords().FirstOrDefaultAsync(hr => hr.Id == id);
             if (habitRecord == null) return NotFound();
 
-            var role = HttpContext.Session.GetString("Role");
-            var email = HttpContext.Session.GetString("Email");
-
-            if (role != "Admin" && habitRecord.Habit.User.Email != email)
-            {
-                return Forbid();
-            }
-
-            ViewBag.Role = role;
-
-            if (role == "Admin")
-            {
-                ViewData["HabitId"] = new SelectList(_context.Habits, "Id", "Name", habitRecord.HabitId);
-            }
-            else
-            {
-                var userHabits = _context.Habits
-                    .Where(h => h.User.Email == email);
-                ViewData["HabitId"] = new SelectList(userHabits, "Id", "Name", habitRecord.HabitId);
-            }
-
+            await FillHabitsAsync(habitRecord.HabitId);
             return View(habitRecord);
         }
 
@@ -153,19 +134,21 @@ namespace Web.Controllers
         {
             if (id != habitRecord.Id) return NotFound();
 
-            var role = HttpContext.Session.GetString("Role");
-            var email = HttpContext.Session.GetString("Email");
+            var original = await VisibleRecords().AsNoTracking().FirstOrDefaultAsync(hr => hr.Id == id);
+            if (original == null) return NotFound();
 
-            if (role != "Admin")
+            await ValidateRecordAsync(habitRecord);
+
+            habitRecord.Date = habitRecord.Date.Date;
+            if (await _context.HabitRecords.AnyAsync(r => r.Id != id && r.HabitId == habitRecord.HabitId && r.Date == habitRecord.Date))
             {
-                var habit = await _context.Habits
-                    .Include(h => h.User)
-                    .FirstOrDefaultAsync(h => h.Id == habitRecord.HabitId);
+                ModelState.AddModelError(nameof(HabitRecord.Date), "This habit already has a record for that day.");
+            }
 
-                if (habit == null || habit.User.Email != email)
-                {
-                    return Forbid();
-                }
+            if (!ModelState.IsValid)
+            {
+                await FillHabitsAsync(habitRecord.HabitId);
+                return View(habitRecord);
             }
 
             try
@@ -175,7 +158,7 @@ namespace Web.Controllers
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!_context.HabitRecords.Any(hr => hr.Id == habitRecord.Id))
+                if (!HabitRecordExists(habitRecord.Id))
                 {
                     return NotFound();
                 }
@@ -185,6 +168,14 @@ namespace Web.Controllers
                 }
             }
 
+            // The record may have moved to another habit, both need fresh numbers
+            await _stats.RefreshStatisticAsync(habitRecord.HabitId);
+            if (original.HabitId != habitRecord.HabitId)
+            {
+                await _stats.RefreshStatisticAsync(original.HabitId);
+            }
+
+            NotifySuccess("Record updated.");
             return RedirectToAction(nameof(Index));
         }
 
@@ -196,7 +187,7 @@ namespace Web.Controllers
                 return NotFound();
             }
 
-            var habitRecord = await _context.HabitRecords
+            var habitRecord = await VisibleRecords()
                 .Include(h => h.Habit)
                 .FirstOrDefaultAsync(m => m.Id == id);
             if (habitRecord == null)
@@ -212,16 +203,53 @@ namespace Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var habitRecord = await _context.HabitRecords.FindAsync(id);
+            var habitRecord = await VisibleRecords().FirstOrDefaultAsync(r => r.Id == id);
             if (habitRecord != null)
             {
                 _context.HabitRecords.Remove(habitRecord);
                 await _context.SaveChangesAsync();
+                await _stats.RefreshStatisticAsync(habitRecord.HabitId);
 
-                TempData["SuccessMessage"] = "The Habit Record has been successfully deleted.";
+                NotifySuccess("The Habit Record has been successfully deleted.");
             }
             return RedirectToAction(nameof(Index));
         }
+
+        private IQueryable<HabitRecord> VisibleRecords()
+        {
+            if (IsAdmin)
+                return _context.HabitRecords;
+
+            var userId = CurrentUserId;
+            return _context.HabitRecords.Where(hr => hr.Habit!.UserId == userId);
+        }
+
+        private async Task ValidateRecordAsync(HabitRecord habitRecord)
+        {
+            // Users can only log records for their own habits
+            if (!await _stats.VisibleHabits(User).AnyAsync(h => h.Id == habitRecord.HabitId))
+            {
+                ModelState.AddModelError(nameof(HabitRecord.HabitId), "Please pick one of the habits.");
+            }
+
+            if (habitRecord.Date.Date > DateTime.Today)
+            {
+                ModelState.AddModelError(nameof(HabitRecord.Date), "The date can't be in the future.");
+            }
+        }
+
+        private async Task FillHabitsAsync(int? selectedId)
+        {
+            var habits = await _stats.VisibleHabits(User)
+                .Include(h => h.User)
+                .OrderBy(h => h.Name)
+                .ToListAsync();
+
+            // Admins see every user's habits, so the owner helps tell them apart
+            var items = habits.Select(h => new { h.Id, Label = IsAdmin ? $"{h.Name} ({h.User?.Name})" : h.Name });
+            ViewData["HabitId"] = new SelectList(items, "Id", "Label", selectedId);
+        }
+
         private bool HabitRecordExists(int id)
         {
             return _context.HabitRecords.Any(e => e.Id == id);

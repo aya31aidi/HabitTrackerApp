@@ -1,0 +1,24 @@
+@model double
+@{
+    var size = ViewData["Size"] as int? ?? 120;
+    var label = ViewData["Label"] as string ?? "";
+    var extraClass = ViewData["Class"] as string ?? "";
+
+    // The dashboard ring is refreshed live by site.js after each check-in.
+    // Razor drops attributes whose value is null, so these only show up on that ring.
+    var todayFlag = ViewData["TodayRing"] as bool? == true ? "" : null;
+
+    const double radius = 44;
+    var circumference = (2 * Math.PI * radius).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+    var percent = Model.ToString("0", System.Globalization.CultureInfo.InvariantCulture);
+}
+<div class="progress-ring @extraClass" style="--size:@(size)px" data-ring="@percent" data-today-ring="@todayFlag">
+    <svg viewBox="0 0 100 100" aria-hidden="true">
+        <circle class="ring-track" cx="50" cy="50" r="@radius" />
+        <circle class="ring-value" cx="50" cy="50" r="@radius" style="stroke-dasharray:@circumference;stroke-dashoffset:@circumference" />
+    </svg>
+    <div class="ring-label">
+        <strong data-count-to="@percent" data-suffix="%" data-today-percent="@todayFlag">0%</strong>
+        <span>@label</span>
+    </div>
+</div>

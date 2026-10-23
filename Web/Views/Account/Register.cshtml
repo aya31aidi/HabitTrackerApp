@@ -1,46 +1,76 @@
 ﻿@model HabitTrackerApp.Models.RegisterViewModel
 @{
     ViewData["Title"] = "Create Account";
+    Layout = "_AuthLayout";
 }
 
-<div class="container d-flex justify-content-center align-items-center min-vh-100">
-    <div class="card shadow-lg p-4" style="width: 100%; max-width: 500px;">
-        <h2 class="text-center text-primary mb-4">Create an Account</h2>
+<a class="brand d-lg-none" asp-controller="Home" asp-action="Index">
+    <span class="brand-logo"><i class="bi bi-check2-all"></i></span>
+    HabitTracker
+</a>
 
-        <form asp-action="Register" method="post">
-            <validation-summary asp-validation-summary="ModelOnly" class="text-danger"></validation-summary>
-            <div class="form-group mb-3">
-                <label asp-for="Username" class="form-label">Username</label>
-                <input asp-for="Username" class="form-control" placeholder="Enter your username" />
-                <span asp-validation-for="Username" class="text-danger"></span>
-            </div>
+<h1 class="mb-1">Create an account</h1>
+<p class="text-muted mb-4">It takes less than a minute, then the first habit is one click away.</p>
 
-            <div class="form-group mb-3">
-                <label asp-for="Email" class="form-label">Email</label>
-                <input asp-for="Email" class="form-control" placeholder="Enter your email" />
-                <span asp-validation-for="Email" class="text-danger"></span>
-            </div>
+<form asp-action="Register" method="post" data-loading novalidate>
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small mb-3" role="alert"></div>
 
-            <div class="form-group mb-3">
-                <label asp-for="Password" class="form-label">Password</label>
-                <input asp-for="Password" type="password" class="form-control" placeholder="Enter your password" />
-                <span asp-validation-for="Password" class="text-danger"></span>
-            </div>
-
-            <div class="form-group mb-4">
-                <label asp-for="ConfirmPassword" class="form-label">Confirm Password</label>
-                <input asp-for="ConfirmPassword" type="password" class="form-control" placeholder="Confirm your password" />
-                <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
-            </div>
-
-            <button type="submit" class="btn btn-primary w-100">Create Account</button>
-        </form>
-
-        <div class="text-center mt-3">
-            <p class="mb-1">Already have an account?</p>
-            <a class="btn btn-outline-secondary w-100" asp-controller="Account" asp-action="Login">
-                Login
-            </a>
+    <div class="mb-3">
+        <label asp-for="Username" class="form-label">Name</label>
+        <div class="input-icon">
+            <i class="bi bi-person"></i>
+            <input asp-for="Username" class="form-control" placeholder="Jane Doe" autocomplete="name" autofocus />
         </div>
+        <span asp-validation-for="Username" class="small"></span>
     </div>
-</div>
+
+    <div class="mb-3">
+        <label asp-for="Email" class="form-label"></label>
+        <div class="input-icon">
+            <i class="bi bi-envelope"></i>
+            <input asp-for="Email" class="form-control" placeholder="name@example.com" autocomplete="email" />
+        </div>
+        <span asp-validation-for="Email" class="small"></span>
+    </div>
+
+    <div class="mb-3">
+        <div class="d-flex justify-content-between">
+            <label asp-for="Password" class="form-label"></label>
+            <small class="text-muted fw-semibold" data-strength-label="Password"></small>
+        </div>
+        <div class="input-icon">
+            <i class="bi bi-lock"></i>
+            <input asp-for="Password" class="form-control" placeholder="At least 6 characters" autocomplete="new-password" />
+            <button type="button" class="input-action" data-password-toggle="Password" aria-label="Show password">
+                <i class="bi bi-eye"></i>
+            </button>
+        </div>
+        <div class="strength-meter" data-password-strength="Password" data-level="0">
+            <span></span><span></span><span></span><span></span>
+        </div>
+        <span asp-validation-for="Password" class="small"></span>
+    </div>
+
+    <div class="mb-4">
+        <label asp-for="ConfirmPassword" class="form-label"></label>
+        <div class="input-icon">
+            <i class="bi bi-shield-check"></i>
+            <input asp-for="ConfirmPassword" class="form-control" placeholder="Repeat the password" autocomplete="new-password" />
+        </div>
+        <span asp-validation-for="ConfirmPassword" class="small"></span>
+    </div>
+
+    <button type="submit" class="btn btn-primary w-100 py-2" data-loading-text="Creating account...">
+        Create account <i class="bi bi-arrow-right ms-1"></i>
+    </button>
+</form>
+
+<div class="divider-text my-4">Already a member?</div>
+
+<a class="btn btn-ghost w-100 py-2" asp-controller="Account" asp-action="Login">
+    <i class="bi bi-box-arrow-in-right me-1"></i> Sign in
+</a>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

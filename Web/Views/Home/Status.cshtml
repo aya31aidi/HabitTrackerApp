@@ -1,0 +1,25 @@
+@{
+    var code = ViewData["Code"] as int? ?? 500;
+    var (title, message, icon) = code switch
+    {
+        404 => ("Page not found", "The page doesn't exist or the item has been deleted.", "bi-signpost-split"),
+        403 => ("Not allowed", "This item belongs to another account.", "bi-shield-lock"),
+        _ => ("Something went wrong", "An unexpected error happened. Please try again in a moment.", "bi-bug")
+    };
+
+    ViewData["Title"] = title;
+    if (User.Identity?.IsAuthenticated != true)
+    {
+        Layout = "_AuthLayout";
+    }
+}
+
+<div class="panel empty-state reveal mx-auto" style="max-width: 560px">
+    <div class="code-big mb-2">@code</div>
+    <h3><i class="bi @icon me-2"></i>@title</h3>
+    <p>@message</p>
+    <div class="d-flex justify-content-center gap-2">
+        <a href="javascript:history.back()" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> Go back</a>
+        <a asp-controller="Home" asp-action="Index" class="btn btn-primary"><i class="bi bi-house me-1"></i> Dashboard</a>
+    </div>
+</div>

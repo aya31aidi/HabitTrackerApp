@@ -1,27 +1,54 @@
 ﻿@model HabitTrackerApp.Models.Category
 
 @{
-    ViewData["Title"] = "Category Details";
+    ViewData["Title"] = Model.Name;
+    var habits = (List<HabitSummary>)ViewBag.Habits;
+    var isAdmin = ViewBag.IsAdmin == true;
+    var index = 0;
 }
 
-<div class="container mt-5">
-    <div class="card shadow-sm border-0">
-        <div class="card-header bg-info text-white">
-            <h3 class="mb-0"><i class="bi bi-tag"></i> Category Details</h3>
+<a asp-action="Index" class="breadcrumb-link"><i class="bi bi-arrow-left"></i> Categories</a>
+
+<div class="panel reveal mb-4 @CategoryStyle.Tone(Model.Id)">
+    <div class="d-flex flex-wrap align-items-center gap-3">
+        <span class="tone-icon" style="width:58px;height:58px;font-size:1.6rem"><i class="bi @CategoryStyle.Icon(Model.Name)"></i></span>
+        <div class="flex-grow-1">
+            <h1 class="h3 mb-1">@Model.Name</h1>
+            <span class="text-muted">
+                @habits.Count @(habits.Count == 1 ? "habit" : "habits")
+                @if (habits.Count > 0)
+                {
+                    @($" · {habits.Average(h => h.CompletionRate):0}% average completion")
+                }
+            </span>
         </div>
-        <div class="card-body">
-            <dl class="row mb-0">
-                <dt class="col-sm-3 text-secondary">Category Name</dt>
-                <dd class="col-sm-9">@Model.Name</dd>
-            </dl>
-        </div>
-        <div class="card-footer d-flex justify-content-between">
-            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-warning">
-                <i class="bi bi-pencil-square"></i> Edit
-            </a>
-            <a asp-action="Index" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left-circle"></i> Back to List
-            </a>
+        <div class="d-flex gap-2">
+            <a asp-controller="Habits" asp-action="Create" asp-route-categoryId="@Model.Id" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> Add habit</a>
+            @if (isAdmin)
+            {
+                <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-ghost btn-icon" title="Rename"><i class="bi bi-pencil"></i></a>
+                <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-ghost btn-icon text-danger" title="Delete"><i class="bi bi-trash"></i></a>
+            }
         </div>
     </div>
 </div>
+
+@if (habits.Count == 0)
+{
+    <div class="panel empty-state reveal">
+        <div class="empty-icon"><i class="bi bi-inbox"></i></div>
+        <h3>No habits in this category yet</h3>
+        <p>Add one and it will appear here with its streak and progress.</p>
+    </div>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-3 g-4">
+        @foreach (var item in habits)
+        {
+            <div class="col" style="--i:@(index++)">
+                <partial name="_HabitCard" model="item" view-data='new ViewDataDictionary(ViewData) { ["ShowOwner"] = isAdmin }' />
+            </div>
+        }
+    </div>
+}

@@ -1,0 +1,22 @@
+@{
+    var success = TempData["SuccessMessage"] as string;
+    var error = TempData["ErrorMessage"] as string;
+}
+<div class="toast-stack" aria-live="polite">
+    @if (!string.IsNullOrEmpty(success))
+    {
+        <div class="app-toast success" role="status">
+            <span class="toast-icon"><i class="bi bi-check2-circle"></i></span>
+            <span>@success</span>
+            <button type="button" class="btn-close" aria-label="Close"></button>
+        </div>
+    }
+    @if (!string.IsNullOrEmpty(error))
+    {
+        <div class="app-toast error" role="alert">
+            <span class="toast-icon"><i class="bi bi-exclamation-triangle"></i></span>
+            <span>@error</span>
+            <button type="button" class="btn-close" aria-label="Close"></button>
+        </div>
+    }
+</div>

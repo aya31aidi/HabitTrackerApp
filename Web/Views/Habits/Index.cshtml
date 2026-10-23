@@ -1,77 +1,86 @@
-﻿@model IEnumerable<HabitTrackerApp.Models.Habit>
+﻿@model HabitListViewModel
 
 @{
-    ViewData["Title"] = "Habit List";
+    ViewData["Title"] = "Habits";
+    var selected = Model.Categories.FirstOrDefault(c => c.Id == Model.SelectedCategoryId);
+    var doneToday = Model.Habits.Count(h => h.DoneToday);
 }
 
-
-
-    @* Display success message *@
-    @if (TempData["SuccessMessage"] != null)
-    {
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-            @TempData["SuccessMessage"]
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-    }
-    <div class="container mt-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2 class="text-primary">Habits</h2>
-            <a asp-action="Create" class="btn btn-success">
-                <i class="bi bi-plus-circle"></i> Create New Habit
-            </a>
+<div class="page-header">
+    <div>
+        <h1>@(selected == null ? "My habits" : selected.Name)</h1>
+        <p>
+            @if (Model.Habits.Count == 0)
+            {
+                @:Nothing to track here yet.
+            }
+            else
+            {
+                <text><span data-filter-count>@Model.Habits.Count</span> @(Model.Habits.Count == 1 ? "habit" : "habits") · @doneToday done today</text>
+            }
+        </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <div class="search-box">
+            <i class="bi bi-search"></i>
+            <input type="search" class="form-control" placeholder="Search habits..." data-filter-input aria-label="Search habits" />
         </div>
-    <div class="table-responsive">
-        <table class="table table-striped table-bordered align-middle">
-            <thead class="table-dark">
-                <tr>
-                    <th>@Html.DisplayNameFor(model => model.First().Name)</th>
-                    <th>@Html.DisplayNameFor(model => model.First().Category)</th>
-                    <th>@Html.DisplayNameFor(model => model.First().Goal)</th>
-                    <th>@Html.DisplayNameFor(model => model.First().User)</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var item in Model)
-                {
-                        <tr>
-                            <td>@item.Name</td>
-                            <td>@item.Category.Name</td>
-                            <td>@item.Goal</td>
-                            <td>@item.User.Email</td>
-                            <td>
-                                <div class="d-flex gap-2">
-                                    <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-outline-info btn-sm me-2">
-                                        <i class="bi bi-info-circle"></i> Details
-                                    </a>
-                                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-outline-warning btn-sm me-2">
-                                        <i class="bi bi-pencil-square"></i> Edit
-                                    </a>
-                                    <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-outline-danger btn-sm">
-                                        <i class="bi bi-trash"></i> Delete
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                }
-            </tbody>
-        </table>
+        <a asp-action="Create" asp-route-categoryId="@Model.SelectedCategoryId" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> New habit
+        </a>
     </div>
 </div>
 
-@section Scripts {
-        <script>
-            setTimeout(function () {
-                var alertEl = document.querySelector('.alert');
-                if (alertEl) {
-                    alertEl.classList.remove('show');
-                    setTimeout(() => {
-                        var alert = bootstrap.Alert.getOrCreateInstance(alertEl);
-                        alert.close();
-                    }, 300); // temps du fade
-                }
-            }, 5000);
-        </script>
-}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div class="filter-pills" role="tablist" aria-label="Filter by category">
+        <a class="filter-pill @(Model.SelectedCategoryId == null ? "active" : "")" asp-action="Index">
+            <i class="bi bi-grid"></i> All
+        </a>
+        @foreach (var category in Model.Categories)
+        {
+            <a class="filter-pill @(category.Id == Model.SelectedCategoryId ? "active" : "")" asp-action="Index" asp-route-categoryId="@category.Id">
+                <i class="bi @CategoryStyle.Icon(category.Name)"></i> @category.Name
+            </a>
+        }
+    </div>
 
+    @if (Model.Habits.Count > 0)
+    {
+        <div class="d-flex gap-2" role="group" aria-label="Filter by status">
+            <button type="button" class="filter-pill active" data-status-filter="all">All</button>
+            <button type="button" class="filter-pill" data-status-filter="todo"><i class="bi bi-circle"></i> To do</button>
+            <button type="button" class="filter-pill" data-status-filter="done"><i class="bi bi-check-circle"></i> Done</button>
+        </div>
+    }
+</div>
+
+@if (Model.Habits.Count == 0)
+{
+    <div class="panel empty-state reveal">
+        <div class="empty-icon"><i class="bi bi-flag"></i></div>
+        <h3>@(selected == null ? "No habits yet" : $"No habits in {selected.Name} yet")</h3>
+        <p>Small, specific habits are the easiest to keep. Start with one and build from there.</p>
+        <a asp-action="Create" asp-route-categoryId="@Model.SelectedCategoryId" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> Create a habit
+        </a>
+    </div>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-3 g-4">
+        @{ var index = 0; }
+        @foreach (var item in Model.Habits)
+        {
+            <div class="col" style="--i:@(index++)" data-filter-item
+                 data-filter-text="@($"{item.Habit.Name} {item.Habit.Goal} {item.Habit.Category?.Name} {item.Habit.User?.Name}")">
+                <partial name="_HabitCard" model="item" view-data='new ViewDataDictionary(ViewData) { ["ShowOwner"] = Model.IsAdmin }' />
+            </div>
+        }
+    </div>
+
+    <div class="panel empty-state d-none mt-2" data-filter-empty>
+        <div class="empty-icon"><i class="bi bi-search"></i></div>
+        <h3>No habit matches</h3>
+        <p>Try another word or clear the filters.</p>
+    </div>
+}

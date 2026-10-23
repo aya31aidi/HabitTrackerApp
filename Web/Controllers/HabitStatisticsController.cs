@@ -1,47 +1,81 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
-using HabitTrackerApp.Models;
 using Web.Data;
+using Web.Models;
+using Web.Services;
 
 namespace Web.Controllers
 {
-    public class HabitStatisticsController : Controller
+    /// <summary>
+    /// Statistics used to be typed in by hand, now they are computed from the habit records.
+    /// </summary>
+    public class HabitStatisticsController : AppController
     {
-        private readonly WebContext _context;
+        private const int TrendDays = 30;
 
-        public HabitStatisticsController(WebContext context)
+        private readonly WebContext _context;
+        private readonly HabitStatsService _stats;
+
+        public HabitStatisticsController(WebContext context, HabitStatsService stats)
         {
             _context = context;
+            _stats = stats;
         }
 
         // GET: HabitStatistics
         public async Task<IActionResult> Index()
         {
-            var role = HttpContext.Session.GetString("Role");
-            var email = HttpContext.Session.GetString("Email");
+            var habits = await _stats.GetSummariesAsync(User);
+            var from = DateTime.Today.AddDays(-TrendDays + 1);
 
-            ViewBag.Role = role;
+            var completedDays = habits
+                .SelectMany(h => h.Habit.HabitRecords)
+                .Where(r => r.IsCompleted)
+                .Select(r => new { r.HabitId, Day = r.Date.Date })
+                .Distinct()
+                .ToList();
 
-            IQueryable<HabitStatistic> statsQuery = _context.HabitStatistics
-                .Include(hs => hs.Habit)
-                .ThenInclude(h => h.User);
+            var perDay = completedDays
+                .Where(r => r.Day >= from && r.Day <= DateTime.Today)
+                .GroupBy(r => r.Day)
+                .ToDictionary(g => g.Key, g => g.Count());
 
-            if (role != "Admin")
+            var trend = Enumerable.Range(0, TrendDays)
+                .Select(i => from.AddDays(i))
+                .Select(day => new ChartPoint(day.ToString("dd MMM", CultureInfo.InvariantCulture), perDay.GetValueOrDefault(day)))
+                .ToList();
+
+            var byCategory = habits
+                .GroupBy(h => h.Habit.Category?.Name ?? "Uncategorized")
+                .Select(g => new ChartPoint(g.Key, g.Sum(h => h.TotalCompletions)))
+                .OrderByDescending(p => p.Value)
+                .ToList();
+
+            // Monday first, like the heatmap
+            var weekdayOrder = new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday };
+            var byWeekday = weekdayOrder
+                .Select(d => new ChartPoint(CultureInfo.InvariantCulture.DateTimeFormat.GetAbbreviatedDayName(d), completedDays.Count(r => r.Day.DayOfWeek == d)))
+                .ToList();
+
+            var model = new StatisticsViewModel
             {
-                statsQuery = statsQuery.Where(hs => hs.Habit.User.Email == email);
-            }
+                Habits = habits.OrderByDescending(h => h.CompletionRate).ToList(),
+                Trend = trend,
+                ByCategory = byCategory,
+                ByWeekday = byWeekday,
+                TrendDays = TrendDays
+            };
 
-            return View(await statsQuery.ToListAsync());
-
+            ViewBag.IsAdmin = IsAdmin;
+            return View(model);
         }
 
-
-        // GET: HabitStatistics/Details/5
+        // GET: HabitStatistics/Details/5 : old statistic links now open the habit page
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null)
@@ -49,175 +83,24 @@ namespace Web.Controllers
                 return NotFound();
             }
 
-            var habitStatistic = await _context.HabitStatistics
-             .Include(h => h.Habit)
-             .FirstOrDefaultAsync(m => m.Id == id);
+            var habitId = await _context.HabitStatistics
+                .Where(s => s.Id == id)
+                .Select(s => (int?)s.HabitId)
+                .FirstOrDefaultAsync();
 
-            if (habitStatistic == null)
-            {
-                return NotFound();
-            }
-
-            return View(habitStatistic);
+            return habitId == null
+                ? NotFound()
+                : RedirectToAction("Details", "Habits", new { id = habitId });
         }
 
-        // GET: HabitStatistics/Create
-        public IActionResult Create()
-        {
-            var role = HttpContext.Session.GetString("Role");
-            var email = HttpContext.Session.GetString("Email");
-
-            ViewBag.Role = role;
-
-            if (role == "Admin")
-            {
-                ViewData["HabitId"] = new SelectList(_context.Habits.Include(h => h.User), "Id", "Name");
-            }
-            else
-            {
-                var userHabits = _context.Habits
-                    .Include(h => h.User)
-                    .Where(h => h.User.Email == email);
-
-                ViewData["HabitId"] = new SelectList(userHabits, "Id", "Name");
-            }
-
-            return View();
-        }
-
-        // POST: HabitStatistics/Create
+        // POST: HabitStatistics/Recalculate
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,TotalCompletions,Streak,CompletionRate,HabitId")] HabitStatistic habitStatistic)
+        public async Task<IActionResult> Recalculate()
         {
-            var role = HttpContext.Session.GetString("Role");
-            var email = HttpContext.Session.GetString("Email");
-
-            if (role != "Admin")
-            {
-                var habit = await _context.Habits
-                    .Include(h => h.User)
-                    .FirstOrDefaultAsync(h => h.Id == habitStatistic.HabitId);
-
-                if (habit == null || habit.User.Email != email)
-                {
-                    return Forbid(); // User trying to create statistic for someone else's habit
-                }
-            }
-
-            _context.Add(habitStatistic);
-            await _context.SaveChangesAsync();
+            await _stats.RefreshAllAsync(User);
+            NotifySuccess("Statistics recalculated from the habit records.");
             return RedirectToAction(nameof(Index));
-        }
-
-        // GET: HabitStatistics/Edit/5
-        public async Task<IActionResult> Edit(int? id)
-        {
-            if (id == null) return NotFound();
-
-            var habitStatistic = await _context.HabitStatistics
-                .Include(hs => hs.Habit)
-                .ThenInclude(h => h.User)
-                .FirstOrDefaultAsync(hs => hs.Id == id);
-
-            if (habitStatistic == null) return NotFound();
-
-            var role = HttpContext.Session.GetString("Role");
-            var email = HttpContext.Session.GetString("Email");
-
-            if (role != "Admin" && habitStatistic.Habit.User.Email != email)
-            {
-                return Forbid();
-            }
-
-            if (role == "Admin")
-            {
-                ViewData["HabitId"] = new SelectList(_context.Habits, "Id", "Name", habitStatistic.HabitId);
-            }
-            else
-            {
-                var userHabits = _context.Habits.Where(h => h.User.Email == email);
-                ViewData["HabitId"] = new SelectList(userHabits, "Id", "Name", habitStatistic.HabitId);
-            }
-
-            return View(habitStatistic);
-        }
-
-        // POST: HabitStatistics/Edit/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,TotalCompletions,Streak,CompletionRate,HabitId")] HabitStatistic habitStatistic)
-        {
-            if (id != habitStatistic.Id) return NotFound();
-
-            var role = HttpContext.Session.GetString("Role");
-            var email = HttpContext.Session.GetString("Email");
-
-            if (role != "Admin")
-            {
-                var habit = await _context.Habits.Include(h => h.User).FirstOrDefaultAsync(h => h.Id == habitStatistic.HabitId);
-                if (habit == null || habit.User.Email != email)
-                {
-                    return Forbid();
-                }
-            }
-
-            try
-            {
-                _context.Update(habitStatistic);
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!HabitStatisticExists(habitStatistic.Id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return RedirectToAction(nameof(Index));
-        }
-        // GET: HabitStatistics/Delete/5
-        public async Task<IActionResult> Delete(int? id)
-        {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var habitStatistic = await _context.HabitStatistics
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (habitStatistic == null)
-            {
-                return NotFound();
-            }
-
-            return View(habitStatistic);
-        }
-
-        // POST: HabitStatistics/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            var habitStatistic = await _context.HabitStatistics.FindAsync(id);
-            if (habitStatistic != null)
-            {
-                _context.HabitStatistics.Remove(habitStatistic);
-                await _context.SaveChangesAsync();
-
-                TempData["SuccessMessage"] = "The Habit Statistic has been successfully deleted.";
-            }
-            return RedirectToAction(nameof(Index));
-        }
-
-        private bool HabitStatisticExists(int id)
-        {
-            return _context.HabitStatistics.Any(e => e.Id == id);
         }
     }
 }

@@ -1,6 +1,25 @@
 ﻿@{
     ViewData["Title"] = "Privacy Policy";
+    if (User.Identity?.IsAuthenticated != true)
+    {
+        Layout = "_AuthLayout";
+    }
 }
-<h1>@ViewData["Title"]</h1>
 
-<p>Use this page to detail your site's privacy policy.</p>
+<div class="page-header">
+    <div>
+        <h1>Privacy</h1>
+        <p>What HabitTracker stores and why.</p>
+    </div>
+</div>
+
+<div class="panel reveal" style="max-width: 760px">
+    <h2 class="h5"><i class="bi bi-database me-2 text-primary"></i>Data stored</h2>
+    <p class="text-muted">The name, email address and a hashed version of the password of each account, plus the habits, daily records and reminders created in the app. Nothing else is collected.</p>
+
+    <h2 class="h5 mt-4"><i class="bi bi-cookie me-2 text-warning"></i>Cookies</h2>
+    <p class="text-muted">A single authentication cookie keeps the session open. The chosen theme (light or dark) is saved in the browser's local storage.</p>
+
+    <h2 class="h5 mt-4"><i class="bi bi-bell me-2 text-danger"></i>Notifications</h2>
+    <p class="text-muted mb-0">Reminder notifications are only shown after permission is granted in the browser, and only while the app is open.</p>
+</div>

@@ -1,0 +1,43 @@
+@model HabitTrackerApp.Models.Reminder
+@{
+    var now = DateTime.Now;
+    var isPast = Model.ReminderTime < now;
+    var isSoon = !isPast && Model.ReminderTime <= now.AddHours(24);
+    var isAdmin = ViewData["IsAdmin"] as bool? ?? false;
+    var index = ViewData["Index"] as int? ?? 0;
+}
+<div class="card reminder-item hover-lift reveal @(isPast ? "is-past" : "")" style="--i:@index">
+    <div class="reminder-time">
+        <strong>@Model.ReminderTime.Day</strong>
+        <span>@Model.ReminderTime.ToString("MMM")</span>
+    </div>
+    <div class="flex-grow-1 overflow-hidden">
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+            <a asp-action="Details" asp-route-id="@Model.Id" class="fw-bold text-reset text-truncate">@Model.Message</a>
+            @if (isPast)
+            {
+                <span class="status-pill past">Past</span>
+            }
+            else if (isSoon)
+            {
+                <span class="status-pill soon"><i class="bi bi-lightning-charge"></i> Soon</span>
+            }
+            else
+            {
+                <span class="status-pill upcoming">Scheduled</span>
+            }
+        </div>
+        <div class="small text-muted d-flex flex-wrap gap-3">
+            <span><i class="bi bi-clock me-1"></i>@Model.ReminderTime.ToString("dddd, HH:mm") · <time data-relative datetime="@Model.ReminderTime.ToString("yyyy-MM-ddTHH:mm:ss")"></time></span>
+            <a asp-controller="Habits" asp-action="Details" asp-route-id="@Model.HabitId" class="text-muted"><i class="bi bi-check2-circle me-1"></i>@Model.Habit?.Name</a>
+            @if (isAdmin)
+            {
+                <span><i class="bi bi-person me-1"></i>@Model.User?.Email</span>
+            }
+        </div>
+    </div>
+    <div class="row-actions align-self-center">
+        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-sm btn-icon" title="Edit"><i class="bi bi-pencil"></i></a>
+        <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-sm btn-icon text-danger" title="Delete"><i class="bi bi-trash"></i></a>
+    </div>
+</div>

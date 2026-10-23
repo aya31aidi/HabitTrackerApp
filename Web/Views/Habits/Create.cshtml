@@ -1,63 +1,30 @@
 ﻿@model HabitTrackerApp.Models.Habit
 
 @{
-    ViewData["Title"] = "Create Habit";
+    ViewData["Title"] = "New Habit";
 }
 
-<h1 class="mb-4">Create a New Habit</h1>
-
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <form asp-action="Create">
-                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
-
-                    <div class="form-group mb-3">
-                        <label asp-for="Name" class="form-label"></label>
-                        <input asp-for="Name" class="form-control" placeholder="Enter habit name" />
-                        <span asp-validation-for="Name" class="text-danger"></span>
-                    </div>
-
-                    <div class="form-group mb-3">
-                        <label asp-for="CategoryId" class="form-label"></label>
-                        <select asp-for="CategoryId" class="form-control" asp-items="ViewBag.CategoryId">
-                            <option value="">Select Category</option>
-                        </select>
-                        <span asp-validation-for="CategoryId" class="text-danger"></span>
-                    </div>
-
-                    <div class="form-group mb-3">
-                        <label asp-for="Goal" class="form-label"></label>
-                        <input asp-for="Goal" class="form-control" placeholder="Enter habit goal (optional)" />
-                        <span asp-validation-for="Goal" class="text-danger"></span>
-                    </div>
-                    
-    @if (ViewBag.Role == "Admin")
-    {
-                    <div class="form-group mb-4">
-                        <label asp-for="UserId" class="form-label"></label>
-                        <select asp-for="UserId" class="form-control" asp-items="ViewBag.UserId">
-                            <option value="">Select User</option>
-                        </select>
-                        <span asp-validation-for="UserId" class="text-danger"></span>
-                    </div>
-    }
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">Create Habit</button>
-                    </div>
-                </form>
-            </div>
-        </div>
+<a asp-action="Index" class="breadcrumb-link"><i class="bi bi-arrow-left"></i> Habits</a>
+<div class="page-header">
+    <div>
+        <h1>Create a new habit</h1>
+        <p>Give it a clear name, pick a category and it shows up on the dashboard right away.</p>
     </div>
 </div>
 
-<div class="mt-3 text-center">
-    <a asp-action="Index" class="btn btn-outline-secondary">Back to list</a>
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="panel reveal">
+            <form asp-action="Create" method="post" data-loading>
+                <partial name="_HabitForm" model="Model" view-data='new ViewDataDictionary(ViewData) { ["SubmitText"] = "Create habit" }' />
+            </form>
+        </div>
+    </div>
+    <div class="col-lg-5 d-none d-lg-block">
+        <partial name="_HabitPreview" model="Model" />
+    </div>
 </div>
 
 @section Scripts {
-    @{
-        await Html.RenderPartialAsync("_ValidationScriptsPartial");
-    }
+    <partial name="_ValidationScriptsPartial" />
 }

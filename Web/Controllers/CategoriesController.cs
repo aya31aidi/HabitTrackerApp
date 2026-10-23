@@ -2,34 +2,45 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using HabitTrackerApp.Models;
 using Web.Data;
+using Web.Models;
+using Web.Services;
 
 namespace Web.Controllers
 {
-    public class CategoriesController : Controller
+    public class CategoriesController : AppController
     {
         private readonly WebContext _context;
+        private readonly HabitStatsService _stats;
 
-        public CategoriesController(WebContext context)
+        public CategoriesController(WebContext context, HabitStatsService stats)
         {
             _context = context;
+            _stats = stats;
         }
 
         // GET: Categories
         public async Task<IActionResult> Index()
         {
-            // Get Role and Email from session
-            var role = HttpContext.Session.GetString("Role");
-            var email = HttpContext.Session.GetString("Email");
+            var today = DateTime.Today;
+            var visibleHabits = _stats.VisibleHabits(User);
 
-            // Pass session data to the view
-            ViewBag.Role = role;
-            ViewBag.Email = email;
-            return View(await _context.Categories.ToListAsync());
+            // Counts only include the habits the current account is allowed to see
+            var cards = await _context.Categories
+                .OrderBy(c => c.Name)
+                .Select(c => new CategoryCard(
+                    c,
+                    visibleHabits.Count(h => h.CategoryId == c.Id),
+                    visibleHabits.Count(h => h.CategoryId == c.Id
+                        && h.HabitRecords.Any(r => r.IsCompleted && r.Date >= today && r.Date < today.AddDays(1)))))
+                .ToListAsync();
+
+            ViewBag.IsAdmin = IsAdmin;
+            return View(cards);
         }
 
         // GET: Categories/Details/5
@@ -47,10 +58,13 @@ namespace Web.Controllers
                 return NotFound();
             }
 
+            ViewBag.Habits = await _stats.GetSummariesAsync(User, category.Id);
+            ViewBag.IsAdmin = IsAdmin;
             return View(category);
         }
 
         // GET: Categories/Create
+        [Authorize(Roles = ClaimsPrincipalExtensions.AdminRole)]
         public IActionResult Create()
         {
             return View();
@@ -59,18 +73,25 @@ namespace Web.Controllers
         // POST: Categories/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = ClaimsPrincipalExtensions.AdminRole)]
         public async Task<IActionResult> Create([Bind("Id,Name")] Category category)
         {
+            await ValidateUniqueNameAsync(category);
+
             if (ModelState.IsValid)
             {
+                category.Name = category.Name.Trim();
                 _context.Add(category);
                 await _context.SaveChangesAsync();
+
+                NotifySuccess($"Category \"{category.Name}\" created.");
                 return RedirectToAction(nameof(Index));
             }
             return View(category);
         }
 
         // GET: Categories/Edit/5
+        [Authorize(Roles = ClaimsPrincipalExtensions.AdminRole)]
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
@@ -89,6 +110,7 @@ namespace Web.Controllers
         // POST: Categories/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = ClaimsPrincipalExtensions.AdminRole)]
         public async Task<IActionResult> Edit(int id, [Bind("Id,Name")] Category category)
         {
             if (id != category.Id)
@@ -96,10 +118,13 @@ namespace Web.Controllers
                 return NotFound();
             }
 
+            await ValidateUniqueNameAsync(category);
+
             if (ModelState.IsValid)
             {
                 try
                 {
+                    category.Name = category.Name.Trim();
                     _context.Update(category);
                     await _context.SaveChangesAsync();
                 }
@@ -114,12 +139,15 @@ namespace Web.Controllers
                         throw;
                     }
                 }
+
+                NotifySuccess("Category updated.");
                 return RedirectToAction(nameof(Index));
             }
             return View(category);
         }
 
         // GET: Categories/Delete/5
+        [Authorize(Roles = ClaimsPrincipalExtensions.AdminRole)]
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null)
@@ -128,6 +156,7 @@ namespace Web.Controllers
             }
 
             var category = await _context.Categories
+                .Include(c => c.Habits)
                 .FirstOrDefaultAsync(m => m.Id == id);
             if (category == null)
             {
@@ -140,35 +169,36 @@ namespace Web.Controllers
         // POST: Categories/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = ClaimsPrincipalExtensions.AdminRole)]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var category = await _context.Categories.FindAsync(id);
             if (category != null)
             {
+                // Habits of this category are removed too (cascade delete)
                 _context.Categories.Remove(category);
                 await _context.SaveChangesAsync();
 
-                TempData["SuccessMessage"] = "Category successfully deleted.";
+                NotifySuccess("Category successfully deleted.");
             }
             return RedirectToAction(nameof(Index));
+        }
+
+        private async Task ValidateUniqueNameAsync(Category category)
+        {
+            if (string.IsNullOrWhiteSpace(category.Name))
+                return;
+
+            var name = category.Name.Trim();
+            if (await _context.Categories.AnyAsync(c => c.Name == name && c.Id != category.Id))
+            {
+                ModelState.AddModelError(nameof(Category.Name), "A category with this name already exists.");
+            }
         }
 
         private bool CategoryExists(int id)
         {
             return _context.Categories.Any(e => e.Id == id);
         }
-
-        // GET: Habits/ByCategory/5
-        public async Task<IActionResult> ByCategory(int id)
-        {
-            var habits = await _context.Habits
-                .Include(h => h.Category)
-                .Include(h => h.User)
-                .Where(h => h.CategoryId == id)
-                .ToListAsync();
-
-            return View("Index", habits); // reuse the same habit list view
-        }
-
     }
 }
