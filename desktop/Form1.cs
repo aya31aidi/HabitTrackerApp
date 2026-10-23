@@ -97,8 +97,12 @@ namespace desktop
                 {
                     user.Name = textBoxName.Text;
                     user.Email = textBoxEmail.Text;
-                    user.Password = textBoxPassword.Text;
-                   
+
+                    // The grid only shows a mask, writing it back would replace the real password
+                    if (!string.IsNullOrEmpty(textBoxPassword.Text) && textBoxPassword.Text != "******")
+                    {
+                        user.Password = textBoxPassword.Text;
+                    }
 
                     _context.SaveChanges();
                     LoadUsers();
@@ -110,9 +114,15 @@ namespace desktop
         {
             if (int.TryParse(textBoxID.Text, out int id))
             {
-                var user = _context.Users.Find(id);
+                var user = _context.Users
+                    .Include(u => u.Habits)
+                    .Include(u => u.Reminders)
+                    .FirstOrDefault(u => u.Id == id);
                 if (user != null)
                 {
+                    // Foreign keys to Users are RESTRICT, dependents have to be removed first
+                    _context.Reminders.RemoveRange(user.Reminders);
+                    _context.Habits.RemoveRange(user.Habits);
                     _context.Users.Remove(user);
                     _context.SaveChanges();
                     LoadUsers();

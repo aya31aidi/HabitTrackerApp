@@ -9,7 +9,7 @@ namespace HabitTrackerApp.Models
 
         [Required(ErrorMessage = "The category name is required.")]
         [StringLength(100, ErrorMessage = "The name must not exceed 100 characters.")]
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
 
         public ICollection<Habit> Habits { get; set; } = new List<Habit>();
 

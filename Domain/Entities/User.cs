@@ -10,17 +10,20 @@ namespace HabitTrackerApp.Models
 
         [Required(ErrorMessage = "The name is required.")]
         [StringLength(100, ErrorMessage = "The name must not exceed 100 characters.")]
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Email is required.")]
         [EmailAddress(ErrorMessage = "Invalid email address.")]
-        public string Email { get; set; }
+        [StringLength(256)]
+        public string Email { get; set; } = string.Empty;
 
+        // Holds the password hash, not the raw password (length rules live in the view models)
         [Required(ErrorMessage = "Password is required.")]
-        [StringLength(50, MinimumLength = 6, ErrorMessage = "The password must contain between 6 and 50 characters.")]
-        public string Password { get; set; }
+        [StringLength(256)]
+        public string Password { get; set; } = string.Empty;
 
         [DataType(DataType.Date)]
+        [Display(Name = "Member Since")]
         public DateTime CreatedAt { get; set; }
 
         public ICollection<Habit> Habits { get; set; } = new List<Habit>();

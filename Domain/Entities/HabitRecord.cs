@@ -11,12 +11,14 @@ namespace HabitTrackerApp.Models
         [DataType(DataType.Date)]
         public DateTime Date { get; set; } // The date on which the habit was tracked : the day the habit was supposed to be completed
 
+        [Display(Name = "Completed")]
         public bool IsCompleted { get; set; }
 
         [Required]
+        [Display(Name = "Habit")]
         public int HabitId { get; set; }
 
-        public Habit Habit { get; set; }
+        public Habit? Habit { get; set; }
 
         public HabitRecord() { }
 

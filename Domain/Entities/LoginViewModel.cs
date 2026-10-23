@@ -9,22 +9,24 @@ namespace HabitTrackerApp.Models
 {
     public class LoginViewModel
     {
-        [Required]
-        public string Role { get; set; } // "Admin" or "User"
+        // The role is detected from the credentials, no need to pick it manually anymore
+        [Required(ErrorMessage = "Email is required.")]
+        [EmailAddress(ErrorMessage = "Invalid email address.")]
+        public string Email { get; set; } = string.Empty;
 
-        [Required]
-        public string Email { get; set; }
-
-        [Required]
+        [Required(ErrorMessage = "Password is required.")]
         [DataType(DataType.Password)]
-        public string Password { get; set; }
-    
-        public LoginViewModel () {}
-    public LoginViewModel (string role, string email ,string  password)
+        public string Password { get; set; } = string.Empty;
+
+        [Display(Name = "Remember me")]
+        public bool RememberMe { get; set; }
+
+        public LoginViewModel() { }
+
+        public LoginViewModel(string email, string password)
         {
-            Role = role;
             Email = email;
             Password = password;
         }
-}
+    }
 }
